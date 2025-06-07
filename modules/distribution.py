@@ -325,7 +325,7 @@ class DistributionModule:
             products = self.db.get_products(available_only=True)
             self.product_data = {}
             for product in products:
-                display_text = f"{product['name']} - {product['category']} ({product['quantity_available']} {product['unit']}) - ${product['price_per_unit']:.2f}/{product['unit']}"
+                display_text = f"{product['name']} - {product['category']} ({product['quantity']} {product['unit']}) - ${product['price_per_unit']:.2f}/{product['unit']}"
                 self.available_products_listbox.insert(tk.END, display_text)
                 self.product_data[len(self.product_data)] = product
         except Exception as e:
@@ -435,7 +435,7 @@ class DistributionModule:
         quantity_window.grab_set()
         
         ttk.Label(quantity_window, text=f"Producto: {product['name']}").pack(pady=10)
-        ttk.Label(quantity_window, text=f"Disponible: {product['quantity_available']} {product['unit']}").pack()
+        ttk.Label(quantity_window, text=f"Disponible: {product['quantity']} {product['unit']}").pack()
         
         ttk.Label(quantity_window, text="Cantidad solicitada:").pack(pady=(10, 5))
         quantity_var = tk.StringVar()
@@ -450,7 +450,7 @@ class DistributionModule:
                     messagebox.showerror("Error", "La cantidad debe ser positiva")
                     return
                 
-                if quantity > product['quantity_available']:
+                if quantity > product['quantity']:
                     messagebox.showerror("Error", "Cantidad no disponible")
                     return
                 
@@ -580,11 +580,25 @@ class DistributionModule:
                     'cancelled': '❌ Cancelado'
                 }.get(request['status'], request['status'])
                 
+                # Format products and quantities for display
+                product_details = request.get('product_details', [])
+                if product_details:
+                    products_text = ", ".join([p['name'] for p in product_details[:2]])
+                    if len(product_details) > 2:
+                        products_text += f" (+{len(product_details)-2} más)"
+                    
+                    quantities_text = ", ".join([f"{p['quantity_requested']:.1f} {p['unit']}" for p in product_details[:2]])
+                    if len(product_details) > 2:
+                        quantities_text += "..."
+                else:
+                    products_text = "Sin productos"
+                    quantities_text = "0"
+                
                 self.requests_tree.insert('', 'end', values=(
                     request['id'],
                     request['sales_point_name'],
-                    request['product_category'],
-                    f"{request['quantity_requested']} {request['unit']}",
+                    products_text,
+                    quantities_text,
                     request['required_date'] or 'N/A',
                     priority_display,
                     status_display
