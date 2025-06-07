@@ -96,7 +96,7 @@ class DistributionModule:
         requests_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
         
         # Requests treeview
-        columns = ('ID', 'Punto de Venta', 'Categoría', 'Cantidad', 'Fecha Requerida', 'Prioridad', 'Estado')
+        columns = ('ID', 'Punto de Venta', 'Productos', 'Cantidades', 'Fecha Requerida', 'Prioridad', 'Estado')
         self.requests_tree = ttk.Treeview(requests_frame, columns=columns, show='headings', 
                                         style='Custom.Treeview', height=15)
         
@@ -302,25 +302,72 @@ class DistributionModule:
         except Exception as e:
             messagebox.showerror("Error", f"Error cargando puntos de venta: {str(e)}")
         
-        # Product category
-        ttk.Label(form_frame, text="Categoría de Producto *:").pack(anchor='w', pady=(0, 5))
-        self.request_category_var = tk.StringVar()
-        category_combo = ttk.Combobox(form_frame, textvariable=self.request_category_var, 
-                                    style='Custom.TCombobox')
-        category_combo['values'] = ['Verduras', 'Frutas', 'Granos', 'Legumbres', 'Hierbas', 'Otros']
-        category_combo.pack(fill='x', pady=(0, 10))
+        # Products selection section
+        products_frame = ttk.LabelFrame(form_frame, text="Productos Solicitados")
+        products_frame.pack(fill='both', expand=True, pady=(0, 10))
         
-        # Quantity and unit
-        quantity_frame = ttk.Frame(form_frame)
-        quantity_frame.pack(fill='x', pady=(0, 10))
+        # Available products list
+        ttk.Label(products_frame, text="Productos Disponibles:").pack(anchor='w', pady=(5, 0))
         
-        ttk.Label(quantity_frame, text="Cantidad Solicitada *:").pack(anchor='w')
-        qty_unit_frame = ttk.Frame(quantity_frame)
-        qty_unit_frame.pack(fill='x', pady=(5, 0))
+        # Products listbox with scrollbar
+        products_list_frame = ttk.Frame(products_frame)
+        products_list_frame.pack(fill='both', expand=True, pady=5)
         
-        self.request_quantity_var = tk.StringVar()
-        ttk.Entry(qty_unit_frame, textvariable=self.request_quantity_var, 
-                 style='Custom.TEntry', width=15).pack(side='left')
+        self.available_products_listbox = tk.Listbox(products_list_frame, height=6)
+        products_scrollbar = ttk.Scrollbar(products_list_frame, orient='vertical', command=self.available_products_listbox.yview)
+        self.available_products_listbox.configure(yscrollcommand=products_scrollbar.set)
+        
+        self.available_products_listbox.pack(side='left', fill='both', expand=True)
+        products_scrollbar.pack(side='right', fill='y')
+        
+        # Load available products
+        try:
+            products = self.db.get_products(available_only=True)
+            self.product_data = {}
+            for product in products:
+                display_text = f"{product['name']} - {product['category']} ({product['quantity_available']} {product['unit']}) - ${product['price_per_unit']:.2f}/{product['unit']}"
+                self.available_products_listbox.insert(tk.END, display_text)
+                self.product_data[len(self.product_data)] = product
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando productos: {str(e)}")
+        
+        # Add/Remove buttons
+        buttons_frame = ttk.Frame(products_frame)
+        buttons_frame.pack(fill='x', pady=5)
+        
+        ttk.Button(buttons_frame, text="Agregar →", command=self.add_product_to_request).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="← Quitar", command=self.remove_product_from_request).pack(side='left')
+        
+        # Selected products
+        ttk.Label(products_frame, text="Productos Seleccionados:").pack(anchor='w', pady=(10, 0))
+        
+        # Selected products treeview
+        selected_frame = ttk.Frame(products_frame)
+        selected_frame.pack(fill='both', expand=True, pady=5)
+        
+        columns = ('Producto', 'Cantidad', 'Unidad', 'Precio')
+        self.selected_products_tree = ttk.Treeview(selected_frame, columns=columns, show='headings', height=4)
+        
+        for col in columns:
+            self.selected_products_tree.heading(col, text=col)
+            if col == 'Producto':
+                self.selected_products_tree.column(col, width=200)
+            else:
+                self.selected_products_tree.column(col, width=80)
+        
+        selected_scrollbar = ttk.Scrollbar(selected_frame, orient='vertical', command=self.selected_products_tree.yview)
+        self.selected_products_tree.configure(yscrollcommand=selected_scrollbar.set)
+        
+        self.selected_products_tree.pack(side='left', fill='both', expand=True)
+        selected_scrollbar.pack(side='right', fill='y')
+        
+        # Keep track of selected products
+        self.selected_products = []
+        
+        # Additional fields
+        ttk.Label(form_frame, text="Precio Máximo Total:").pack(anchor='w', pady=(10, 5))
+        self.request_max_price_var = tk.StringVar()
+        ttk.Entry(form_frame, textvariable=self.request_max_price_var).pack(fill='x', pady=(0, 10))
         
         self.request_unit_var = tk.StringVar()
         unit_combo = ttk.Combobox(qty_unit_frame, textvariable=self.request_unit_var, 
@@ -370,6 +417,87 @@ class DistributionModule:
                   style='Secondary.TButton',
                   command=self.request_form_window.destroy).pack(side='left')
     
+    def add_product_to_request(self):
+        """Add selected product to request"""
+        selection = self.available_products_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione un producto de la lista")
+            return
+        
+        product_index = selection[0]
+        product = self.product_data[product_index]
+        
+        # Ask for quantity
+        quantity_window = tk.Toplevel(self.request_form_window)
+        quantity_window.title("Cantidad Solicitada")
+        quantity_window.geometry("300x150")
+        quantity_window.transient(self.request_form_window)
+        quantity_window.grab_set()
+        
+        ttk.Label(quantity_window, text=f"Producto: {product['name']}").pack(pady=10)
+        ttk.Label(quantity_window, text=f"Disponible: {product['quantity_available']} {product['unit']}").pack()
+        
+        ttk.Label(quantity_window, text="Cantidad solicitada:").pack(pady=(10, 5))
+        quantity_var = tk.StringVar()
+        quantity_entry = ttk.Entry(quantity_window, textvariable=quantity_var, width=20)
+        quantity_entry.pack(pady=5)
+        quantity_entry.focus()
+        
+        def add_product():
+            try:
+                quantity = float(quantity_var.get())
+                if quantity <= 0:
+                    messagebox.showerror("Error", "La cantidad debe ser positiva")
+                    return
+                
+                if quantity > product['quantity_available']:
+                    messagebox.showerror("Error", "Cantidad no disponible")
+                    return
+                
+                # Add to selected products
+                selected_product = {
+                    'id': product['id'],
+                    'name': product['name'],
+                    'quantity': quantity,
+                    'unit': product['unit'],
+                    'price': product['price_per_unit']
+                }
+                
+                self.selected_products.append(selected_product)
+                
+                # Update tree
+                self.selected_products_tree.insert('', 'end', values=(
+                    product['name'],
+                    f"{quantity:.1f}",
+                    product['unit'],
+                    f"${product['price_per_unit']:.2f}"
+                ))
+                
+                quantity_window.destroy()
+                
+            except ValueError:
+                messagebox.showerror("Error", "Ingrese una cantidad válida")
+        
+        buttons_frame = ttk.Frame(quantity_window)
+        buttons_frame.pack(pady=10)
+        
+        ttk.Button(buttons_frame, text="Agregar", command=add_product).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Cancelar", command=quantity_window.destroy).pack(side='left')
+    
+    def remove_product_from_request(self):
+        """Remove selected product from request"""
+        selection = self.selected_products_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione un producto para quitar")
+            return
+        
+        item = selection[0]
+        product_name = self.selected_products_tree.item(item)['values'][0]
+        
+        # Remove from list and tree
+        self.selected_products = [p for p in self.selected_products if p['name'] != product_name]
+        self.selected_products_tree.delete(item)
+    
     def save_request(self):
         """Save distribution request"""
         try:
@@ -378,33 +506,20 @@ class DistributionModule:
                 messagebox.showerror("Error", "Debe seleccionar un punto de venta")
                 return
             
-            if not self.request_category_var.get().strip():
-                messagebox.showerror("Error", "La categoría es obligatoria")
+            if not self.selected_products:
+                messagebox.showerror("Error", "Debe seleccionar al menos un producto")
                 return
             
-            if not self.request_quantity_var.get().strip():
-                messagebox.showerror("Error", "La cantidad es obligatoria")
-                return
-            
-            if not self.request_unit_var.get().strip():
-                messagebox.showerror("Error", "La unidad es obligatoria")
-                return
-            
-            # Validate numeric fields
-            try:
-                quantity = float(self.request_quantity_var.get())
-                if quantity <= 0:
-                    raise ValueError("La cantidad debe ser positiva")
-                    
-                max_price = None
-                if self.request_max_price_var.get().strip():
+            # Validate max price if provided
+            max_price = None
+            if self.request_max_price_var.get().strip():
+                try:
                     max_price = float(self.request_max_price_var.get())
                     if max_price <= 0:
                         raise ValueError("El precio debe ser positivo")
-                        
-            except ValueError as e:
-                messagebox.showerror("Error", f"Error en valores numéricos: {str(e)}")
-                return
+                except ValueError as e:
+                    messagebox.showerror("Error", f"Error en precio máximo: {str(e)}")
+                    return
             
             # Validate date if provided
             required_date = self.request_required_date_var.get().strip()
@@ -416,12 +531,15 @@ class DistributionModule:
             sales_point_selection = self.request_sales_point_var.get()
             sales_point_id = int(sales_point_selection.split(' - ')[0])
             
+            # Prepare product IDs and quantities
+            product_ids = [p['id'] for p in self.selected_products]
+            quantities = [p['quantity'] for p in self.selected_products]
+            
             # Prepare request data
             request_data = {
                 'sales_point_id': sales_point_id,
-                'product_category': self.request_category_var.get().strip(),
-                'quantity_requested': quantity,
-                'unit': self.request_unit_var.get().strip(),
+                'product_ids': product_ids,
+                'quantities': quantities,
                 'max_price': max_price,
                 'required_date': required_date if required_date else None,
                 'priority': self.request_priority_var.get(),
