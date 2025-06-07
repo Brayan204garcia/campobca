@@ -15,6 +15,7 @@ class DatabaseManager:
         self.sales_points_file = os.path.join(self.data_dir, "sales_points.json")
         self.distribution_requests_file = os.path.join(self.data_dir, "distribution_requests.json")
         self.distribution_assignments_file = os.path.join(self.data_dir, "distribution_assignments.json")
+        self.deliveries_file = os.path.join(self.data_dir, "deliveries.json")
         
         # Initialize JSON files
         self.initialize_json_files()
@@ -31,7 +32,8 @@ class DatabaseManager:
             (self.products_file, []),
             (self.sales_points_file, []),
             (self.distribution_requests_file, []),
-            (self.distribution_assignments_file, [])
+            (self.distribution_assignments_file, []),
+            (self.deliveries_file, [])
         ]
         
         for file_path, initial_data in files_to_init:
@@ -264,9 +266,8 @@ class DatabaseManager:
             new_request = {
                 'id': request_id,
                 'sales_point_id': request_data['sales_point_id'],
-                'product_category': request_data['product_category'],
-                'quantity_requested': request_data['quantity_requested'],
-                'unit': request_data['unit'],
+                'product_ids': request_data['product_ids'],  # Lista de IDs de productos específicos
+                'quantities': request_data['quantities'],   # Cantidades correspondientes
                 'max_price': request_data.get('max_price'),
                 'required_date': request_data.get('required_date'),
                 'priority': request_data.get('priority', 'medium'),
@@ -283,13 +284,15 @@ class DatabaseManager:
             raise Exception(f"Error agregando solicitud de distribución: {str(e)}")
     
     def get_distribution_requests(self, status: Optional[str] = None) -> List[Dict]:
-        """Get distribution requests with sales point information"""
+        """Get distribution requests with sales point and product information"""
         try:
             requests = self.load_json(self.distribution_requests_file)
             sales_points = self.load_json(self.sales_points_file)
+            products = self.load_json(self.products_file)
             
-            # Create sales point lookup dict
+            # Create lookup dictionaries
             sp_lookup = {sp['id']: sp['name'] for sp in sales_points}
+            product_lookup = {p['id']: p for p in products}
             
             # Filter requests by status
             filtered_requests = []
@@ -299,6 +302,24 @@ class DatabaseManager:
                 
                 # Add sales point name
                 request['sales_point_name'] = sp_lookup.get(request.get('sales_point_id'), 'Desconocido')
+                
+                # Add product details
+                product_details = []
+                product_ids = request.get('product_ids', [])
+                quantities = request.get('quantities', [])
+                
+                for i, product_id in enumerate(product_ids):
+                    product = product_lookup.get(product_id, {})
+                    quantity = quantities[i] if i < len(quantities) else 0
+                    product_details.append({
+                        'id': product_id,
+                        'name': product.get('name', 'Producto no encontrado'),
+                        'category': product.get('category', ''),
+                        'unit': product.get('unit', ''),
+                        'quantity_requested': quantity
+                    })
+                
+                request['product_details'] = product_details
                 filtered_requests.append(request)
             
             return filtered_requests
@@ -346,3 +367,193 @@ class DatabaseManager:
             
         except Exception as e:
             raise Exception(f"Error obteniendo estadísticas: {str(e)}")
+    
+    # Distribution Assignment operations
+    def add_distribution_assignment(self, assignment_data: Dict) -> int:
+        """Add a new distribution assignment"""
+        try:
+            assignments = self.load_json(self.distribution_assignments_file)
+            assignment_id = self.get_next_id(assignments)
+            
+            new_assignment = {
+                'id': assignment_id,
+                'request_id': assignment_data['request_id'],
+                'product_id': assignment_data['product_id'],
+                'farmer_id': assignment_data['farmer_id'],
+                'quantity_assigned': assignment_data['quantity_assigned'],
+                'unit_price': assignment_data.get('unit_price', 0),
+                'total_price': assignment_data.get('total_price', 0),
+                'status': 'assigned',
+                'assigned_date': datetime.now().isoformat(),
+                'notes': assignment_data.get('notes', '')
+            }
+            
+            assignments.append(new_assignment)
+            self.save_json(self.distribution_assignments_file, assignments)
+            return assignment_id
+            
+        except Exception as e:
+            raise Exception(f"Error agregando asignación: {str(e)}")
+    
+    def get_distribution_assignments(self, status: Optional[str] = None) -> List[Dict]:
+        """Get distribution assignments with detailed information"""
+        try:
+            assignments = self.load_json(self.distribution_assignments_file)
+            requests = self.load_json(self.distribution_requests_file)
+            products = self.load_json(self.products_file)
+            farmers = self.load_json(self.farmers_file)
+            sales_points = self.load_json(self.sales_points_file)
+            
+            # Create lookup dictionaries
+            request_lookup = {r['id']: r for r in requests}
+            product_lookup = {p['id']: p for p in products}
+            farmer_lookup = {f['id']: f for f in farmers}
+            sp_lookup = {sp['id']: sp for sp in sales_points}
+            
+            # Filter and enrich assignments
+            filtered_assignments = []
+            for assignment in assignments:
+                if status and assignment.get('status') != status:
+                    continue
+                
+                request = request_lookup.get(assignment.get('request_id'), {})
+                product = product_lookup.get(assignment.get('product_id'), {})
+                farmer = farmer_lookup.get(assignment.get('farmer_id'), {})
+                sales_point = sp_lookup.get(request.get('sales_point_id'), {})
+                
+                assignment['request_info'] = request
+                assignment['product_name'] = product.get('name', 'Producto no encontrado')
+                assignment['farmer_name'] = farmer.get('name', 'Agricultor no encontrado')
+                assignment['sales_point_name'] = sales_point.get('name', 'Punto de venta no encontrado')
+                assignment['product_category'] = product.get('category', '')
+                assignment['product_unit'] = product.get('unit', '')
+                
+                filtered_assignments.append(assignment)
+            
+            return filtered_assignments
+            
+        except Exception as e:
+            raise Exception(f"Error obteniendo asignaciones: {str(e)}")
+    
+    def update_assignment_status(self, assignment_id: int, new_status: str, notes: Optional[str] = None):
+        """Update assignment status"""
+        try:
+            assignments = self.load_json(self.distribution_assignments_file)
+            
+            for assignment in assignments:
+                if assignment['id'] == assignment_id:
+                    assignment['status'] = new_status
+                    assignment['updated_date'] = datetime.now().isoformat()
+                    if notes is not None:
+                        assignment['notes'] = notes
+                    break
+            
+            self.save_json(self.distribution_assignments_file, assignments)
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando asignación: {str(e)}")
+    
+    # Delivery operations
+    def add_delivery(self, delivery_data: Dict) -> int:
+        """Add a new delivery"""
+        try:
+            deliveries = self.load_json(self.deliveries_file)
+            delivery_id = self.get_next_id(deliveries)
+            
+            new_delivery = {
+                'id': delivery_id,
+                'assignment_id': delivery_data['assignment_id'],
+                'driver_name': delivery_data.get('driver_name', ''),
+                'vehicle_info': delivery_data.get('vehicle_info', ''),
+                'scheduled_date': delivery_data.get('scheduled_date'),
+                'delivery_address': delivery_data.get('delivery_address', ''),
+                'status': 'scheduled',
+                'created_date': datetime.now().isoformat(),
+                'notes': delivery_data.get('notes', '')
+            }
+            
+            deliveries.append(new_delivery)
+            self.save_json(self.deliveries_file, deliveries)
+            return delivery_id
+            
+        except Exception as e:
+            raise Exception(f"Error agregando entrega: {str(e)}")
+    
+    def get_deliveries(self, status: Optional[str] = None) -> List[Dict]:
+        """Get deliveries with detailed information"""
+        try:
+            deliveries = self.load_json(self.deliveries_file)
+            assignments = self.load_json(self.distribution_assignments_file)
+            requests = self.load_json(self.distribution_requests_file)
+            products = self.load_json(self.products_file)
+            farmers = self.load_json(self.farmers_file)
+            sales_points = self.load_json(self.sales_points_file)
+            
+            # Create lookup dictionaries
+            assignment_lookup = {a['id']: a for a in assignments}
+            request_lookup = {r['id']: r for r in requests}
+            product_lookup = {p['id']: p for p in products}
+            farmer_lookup = {f['id']: f for f in farmers}
+            sp_lookup = {sp['id']: sp for sp in sales_points}
+            
+            # Filter and enrich deliveries
+            filtered_deliveries = []
+            for delivery in deliveries:
+                if status and delivery.get('status') != status:
+                    continue
+                
+                assignment = assignment_lookup.get(delivery.get('assignment_id'), {})
+                request = request_lookup.get(assignment.get('request_id'), {})
+                product = product_lookup.get(assignment.get('product_id'), {})
+                farmer = farmer_lookup.get(assignment.get('farmer_id'), {})
+                sales_point = sp_lookup.get(request.get('sales_point_id'), {})
+                
+                delivery['assignment_info'] = assignment
+                delivery['product_name'] = product.get('name', 'Producto no encontrado')
+                delivery['farmer_name'] = farmer.get('name', 'Agricultor no encontrado')
+                delivery['sales_point_name'] = sales_point.get('name', 'Punto de venta no encontrado')
+                delivery['quantity'] = assignment.get('quantity_assigned', 0)
+                delivery['total_price'] = assignment.get('total_price', 0)
+                
+                filtered_deliveries.append(delivery)
+            
+            return filtered_deliveries
+            
+        except Exception as e:
+            raise Exception(f"Error obteniendo entregas: {str(e)}")
+    
+    def update_delivery_status(self, delivery_id: int, new_status: str, notes: Optional[str] = None):
+        """Update delivery status"""
+        try:
+            deliveries = self.load_json(self.deliveries_file)
+            
+            for delivery in deliveries:
+                if delivery['id'] == delivery_id:
+                    delivery['status'] = new_status
+                    delivery['updated_date'] = datetime.now().isoformat()
+                    if new_status == 'delivered':
+                        delivery['delivered_date'] = datetime.now().isoformat()
+                    if notes is not None:
+                        delivery['notes'] = notes
+                    break
+            
+            self.save_json(self.deliveries_file, deliveries)
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando entrega: {str(e)}")
+    
+    def update_request_status(self, request_id: int, new_status: str):
+        """Update distribution request status"""
+        try:
+            requests = self.load_json(self.distribution_requests_file)
+            
+            for request in requests:
+                if request['id'] == request_id:
+                    request['status'] = new_status
+                    request['updated_date'] = datetime.now().isoformat()
+                    break
+            
+            self.save_json(self.distribution_requests_file, requests)
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando solicitud: {str(e)}")
