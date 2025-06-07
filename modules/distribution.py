@@ -302,20 +302,33 @@ class DistributionModule:
         """Show distribution request form dialog"""
         self.request_form_window = tk.Toplevel(self.frame)
         self.request_form_window.title("Nueva Solicitud de Distribución")
-        self.request_form_window.geometry("500x500")
+        self.request_form_window.geometry("700x650")
         self.request_form_window.transient(self.frame)
         self.request_form_window.grab_set()
         
+        # Main container with scrollbar
+        canvas = tk.Canvas(self.request_form_window)
+        scrollbar = ttk.Scrollbar(self.request_form_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
         # Form frame
-        form_frame = ttk.Frame(self.request_form_window, padding=20)
+        form_frame = ttk.Frame(scrollable_frame, padding=20)
         form_frame.pack(fill='both', expand=True)
         
         # Sales point selection
-        ttk.Label(form_frame, text="Punto de Venta *:").pack(anchor='w', pady=(0, 5))
+        ttk.Label(form_frame, text="Punto de Venta *:").pack(anchor='w', pady=(0, 2))
         self.request_sales_point_var = tk.StringVar()
         sales_point_combo = ttk.Combobox(form_frame, textvariable=self.request_sales_point_var, 
                                        style='Custom.TCombobox', state='readonly')
-        sales_point_combo.pack(fill='x', pady=(0, 10))
+        sales_point_combo.pack(fill='x', pady=(0, 8))
         
         # Load sales points for combobox
         try:
@@ -327,16 +340,16 @@ class DistributionModule:
         
         # Products selection section
         products_frame = ttk.LabelFrame(form_frame, text="Productos Solicitados")
-        products_frame.pack(fill='both', expand=True, pady=(0, 10))
+        products_frame.pack(fill='both', expand=True, pady=(0, 8))
         
         # Available products list
-        ttk.Label(products_frame, text="Productos Disponibles:").pack(anchor='w', pady=(5, 0))
+        ttk.Label(products_frame, text="Productos Disponibles:").pack(anchor='w', pady=(5, 2))
         
         # Products listbox with scrollbar
         products_list_frame = ttk.Frame(products_frame)
-        products_list_frame.pack(fill='both', expand=True, pady=5)
+        products_list_frame.pack(fill='both', expand=True, pady=3)
         
-        self.available_products_listbox = tk.Listbox(products_list_frame, height=6)
+        self.available_products_listbox = tk.Listbox(products_list_frame, height=4)
         products_scrollbar = ttk.Scrollbar(products_list_frame, orient='vertical', command=self.available_products_listbox.yview)
         self.available_products_listbox.configure(yscrollcommand=products_scrollbar.set)
         
@@ -356,20 +369,20 @@ class DistributionModule:
         
         # Add/Remove buttons
         buttons_frame = ttk.Frame(products_frame)
-        buttons_frame.pack(fill='x', pady=5)
+        buttons_frame.pack(fill='x', pady=3)
         
         ttk.Button(buttons_frame, text="Agregar →", command=self.add_product_to_request).pack(side='left', padx=5)
         ttk.Button(buttons_frame, text="← Quitar", command=self.remove_product_from_request).pack(side='left')
         
         # Selected products
-        ttk.Label(products_frame, text="Productos Seleccionados:").pack(anchor='w', pady=(10, 0))
+        ttk.Label(products_frame, text="Productos Seleccionados:").pack(anchor='w', pady=(8, 2))
         
         # Selected products treeview
         selected_frame = ttk.Frame(products_frame)
-        selected_frame.pack(fill='both', expand=True, pady=5)
+        selected_frame.pack(fill='both', expand=True, pady=3)
         
         columns = ('Producto', 'Cantidad', 'Unidad', 'Precio')
-        self.selected_products_tree = ttk.Treeview(selected_frame, columns=columns, show='headings', height=4)
+        self.selected_products_tree = ttk.Treeview(selected_frame, columns=columns, show='headings', height=3)
         
         for col in columns:
             self.selected_products_tree.heading(col, text=col)
@@ -387,50 +400,53 @@ class DistributionModule:
         # Keep track of selected products
         self.selected_products = []
         
-        # Additional fields
-        ttk.Label(form_frame, text="Precio Máximo Total:").pack(anchor='w', pady=(10, 5))
+        # Additional fields in rows for better layout
+        fields_frame = ttk.Frame(form_frame)
+        fields_frame.pack(fill='x', pady=(8, 0))
+        
+        # Row 1: Price and Priority
+        row1_frame = ttk.Frame(fields_frame)
+        row1_frame.pack(fill='x', pady=(0, 5))
+        
+        # Price column
+        price_frame = ttk.Frame(row1_frame)
+        price_frame.pack(side='left', fill='x', expand=True, padx=(0, 10))
+        ttk.Label(price_frame, text="Precio Máximo Total:").pack(anchor='w')
         self.request_max_price_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=self.request_max_price_var).pack(fill='x', pady=(0, 10))
+        ttk.Entry(price_frame, textvariable=self.request_max_price_var).pack(fill='x')
         
-        self.request_unit_var = tk.StringVar()
-        unit_combo = ttk.Combobox(qty_unit_frame, textvariable=self.request_unit_var, 
-                                style='Custom.TCombobox', width=15)
-        unit_combo['values'] = ['kg', 'libras', 'unidades', 'cajas', 'sacos', 'litros']
-        unit_combo.pack(side='left', padx=(10, 0))
-        
-        # Max price
-        ttk.Label(form_frame, text="Precio Máximo por Unidad:").pack(anchor='w', pady=(0, 5))
-        self.request_max_price_var = tk.StringVar()
-        ttk.Entry(form_frame, textvariable=self.request_max_price_var, 
-                 style='Custom.TEntry').pack(fill='x', pady=(0, 10))
-        
-        # Required date
-        ttk.Label(form_frame, text="Fecha Requerida:").pack(anchor='w', pady=(0, 5))
-        date_frame = ttk.Frame(form_frame)
-        date_frame.pack(fill='x', pady=(0, 10))
-        
-        self.request_required_date_var = tk.StringVar()
-        ttk.Entry(date_frame, textvariable=self.request_required_date_var, 
-                 style='Custom.TEntry', width=12).pack(side='left')
-        ttk.Label(date_frame, text="(YYYY-MM-DD)").pack(side='left', padx=(5, 0))
-        
-        # Priority
-        ttk.Label(form_frame, text="Prioridad:").pack(anchor='w', pady=(0, 5))
+        # Priority column
+        priority_frame = ttk.Frame(row1_frame)
+        priority_frame.pack(side='left', fill='x', expand=True)
+        ttk.Label(priority_frame, text="Prioridad:").pack(anchor='w')
         self.request_priority_var = tk.StringVar()
-        priority_combo = ttk.Combobox(form_frame, textvariable=self.request_priority_var, 
+        priority_combo = ttk.Combobox(priority_frame, textvariable=self.request_priority_var, 
                                     style='Custom.TCombobox', state='readonly')
         priority_combo['values'] = ['low', 'medium', 'high']
         priority_combo.set('medium')
-        priority_combo.pack(fill='x', pady=(0, 10))
+        priority_combo.pack(fill='x')
+        
+        # Row 2: Required date
+        row2_frame = ttk.Frame(fields_frame)
+        row2_frame.pack(fill='x', pady=(0, 5))
+        
+        ttk.Label(row2_frame, text="Fecha Requerida:").pack(anchor='w')
+        date_frame = ttk.Frame(row2_frame)
+        date_frame.pack(fill='x')
+        
+        self.request_required_date_var = tk.StringVar()
+        ttk.Entry(date_frame, textvariable=self.request_required_date_var, 
+                 style='Custom.TEntry', width=15).pack(side='left')
+        ttk.Label(date_frame, text="(YYYY-MM-DD)").pack(side='left', padx=(5, 0))
         
         # Notes
-        ttk.Label(form_frame, text="Notas Adicionales:").pack(anchor='w', pady=(0, 5))
-        self.request_notes_text = tk.Text(form_frame, height=4, font=('Segoe UI', 10), wrap=tk.WORD)
-        self.request_notes_text.pack(fill='x', pady=(0, 10))
+        ttk.Label(fields_frame, text="Notas Adicionales:").pack(anchor='w', pady=(5, 2))
+        self.request_notes_text = tk.Text(fields_frame, height=3, font=('Segoe UI', 10), wrap=tk.WORD)
+        self.request_notes_text.pack(fill='x', pady=(0, 8))
         
         # Buttons
-        buttons_frame = ttk.Frame(form_frame)
-        buttons_frame.pack(fill='x', pady=(10, 0))
+        buttons_frame = ttk.Frame(fields_frame)
+        buttons_frame.pack(fill='x', pady=(8, 0))
         
         ttk.Button(buttons_frame, text="💾 Guardar Solicitud", 
                   style='Primary.TButton',
@@ -439,6 +455,10 @@ class DistributionModule:
         ttk.Button(buttons_frame, text="❌ Cancelar", 
                   style='Secondary.TButton',
                   command=self.request_form_window.destroy).pack(side='left')
+        
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
     
     def add_product_to_request(self):
         """Add selected product to request"""
@@ -674,12 +694,30 @@ class DistributionModule:
                     'low': '🟢 Baja'
                 }.get(request['priority'], request['priority'])
                 
+                # Extract category and quantity information from product details
+                product_details = request.get('product_details', [])
+                if product_details:
+                    # Get categories of all products in the request
+                    categories = list(set([p.get('category', 'Sin categoría') for p in product_details]))
+                    category_display = ", ".join(categories[:2])
+                    if len(categories) > 2:
+                        category_display += f" (+{len(categories)-2} más)"
+                    
+                    # Get total quantity requested
+                    total_quantity = sum([p.get('quantity_requested', 0) for p in product_details])
+                    units = list(set([p.get('unit', '') for p in product_details]))
+                    unit_display = units[0] if len(units) == 1 else 'mixtas'
+                    quantity_display = f"{total_quantity:.1f} {unit_display}"
+                else:
+                    category_display = "Sin productos"
+                    quantity_display = "0"
+                
                 self.pending_requests_tree.insert('', 'end', values=(
                     request['id'],
                     request['sales_point_name'],
-                    request['product_category'],
-                    f"{request['quantity_requested']} {request['unit']}",
-                    f"${request['max_price']:.2f}" if request['max_price'] else 'N/A',
+                    category_display,
+                    quantity_display,
+                    f"${request['max_price']:.2f}" if request.get('max_price') else 'N/A',
                     priority_display
                 ))
                 
