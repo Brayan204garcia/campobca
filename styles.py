@@ -6,25 +6,29 @@ class StyleManager:
         self.root = root
         self.style = ttk.Style()
         
-        # Color palette
+        # Modern color palette
         self.colors = {
-            'primary': '#2E7D32',      # Green primary
+            'primary': '#1B5E20',      # Dark green primary
             'primary_light': '#4CAF50', # Light green
-            'primary_dark': '#1B5E20',  # Dark green
-            'secondary': '#FF9800',     # Orange secondary
+            'primary_dark': '#0D2818',  # Very dark green
+            'secondary': '#2196F3',     # Blue secondary
+            'accent': '#FF6B35',        # Orange accent
             'success': '#4CAF50',       # Success green
             'warning': '#FF9800',       # Warning orange
             'danger': '#F44336',        # Danger red
             'info': '#2196F3',          # Info blue
-            'light': '#F5F5F5',         # Light gray
+            'light': '#FAFAFA',         # Very light gray
+            'medium': '#E0E0E0',        # Medium gray
             'dark': '#212121',          # Dark gray
             'white': '#FFFFFF',
-            'background': '#F8F9FA',
+            'background': '#F5F7FA',    # Soft blue-gray background
             'surface': '#FFFFFF',
+            'card': '#FFFFFF',
             'on_primary': '#FFFFFF',
-            'on_surface': '#212121',
-            'border': '#E0E0E0',
-            'hover': '#E8F5E8'
+            'on_surface': '#1A1A1A',
+            'border': '#E1E5E9',
+            'hover': '#E8F5E8',
+            'shadow': '#00000020'
         }
     
     def apply_styles(self):
@@ -48,6 +52,10 @@ class StyleManager:
             foreground=self.colors['on_surface'],
             font=('Segoe UI', 10)
         )
+        
+        # Configure relief for modern look
+        self.style.configure('TFrame', relief='flat')
+        self.style.configure('TLabelFrame', relief='flat')
     
     def configure_frame_styles(self):
         """Configure frame styles"""
@@ -58,31 +66,38 @@ class StyleManager:
             borderwidth=0
         )
         
-        # Header frame
+        # Header frame with gradient effect
         self.style.configure('Header.TFrame',
             background=self.colors['primary'],
             relief='flat',
             borderwidth=0
         )
         
-        # Navigation frame
+        # Navigation frame with modern look
         self.style.configure('Navigation.TFrame',
-            background=self.colors['surface'],
-            relief='solid',
-            borderwidth=1
+            background=self.colors['card'],
+            relief='flat',
+            borderwidth=0
         )
         
         # Content frame
         self.style.configure('Content.TFrame',
-            background=self.colors['surface'],
-            relief='solid',
+            background=self.colors['background'],
+            relief='flat',
+            borderwidth=0
+        )
+        
+        # Card frame for modules with shadow effect
+        self.style.configure('Card.TFrame',
+            background=self.colors['card'],
+            relief='raised',
             borderwidth=1
         )
         
-        # Card frame for modules
-        self.style.configure('Card.TFrame',
-            background=self.colors['surface'],
-            relief='solid',
+        # Stats card frame
+        self.style.configure('StatsCard.TFrame',
+            background=self.colors['card'],
+            relief='raised',
             borderwidth=1
         )
     
@@ -92,22 +107,50 @@ class StyleManager:
         self.style.configure('Title.TLabel',
             background=self.colors['primary'],
             foreground=self.colors['on_primary'],
-            font=('Segoe UI', 18, 'bold')
+            font=('Segoe UI', 20, 'bold')
         )
         
-        # Heading labels
+        # Module heading labels
         self.style.configure('Heading.TLabel',
-            background=self.colors['surface'],
-            foreground=self.colors['on_surface'],
-            font=('Segoe UI', 14, 'bold')
+            background=self.colors['background'],
+            foreground=self.colors['primary'],
+            font=('Segoe UI', 16, 'bold')
         )
         
         # Subheading labels
         self.style.configure('Subheading.TLabel',
-            background=self.colors['surface'],
+            background=self.colors['card'],
             foreground=self.colors['on_surface'],
             font=('Segoe UI', 12, 'bold')
         )
+        
+        # Status labels
+        self.style.configure('Status.TLabel',
+            background=self.colors['primary'],
+            foreground=self.colors['on_primary'],
+            font=('Segoe UI', 10)
+        )
+        
+        self.style.configure('StatusGreen.TLabel',
+            background=self.colors['primary'],
+            foreground=self.colors['success'],
+            font=('Segoe UI', 10, 'bold')
+        )
+        
+        # Stats labels
+        self.style.configure('StatValue.TLabel',
+            background=self.colors['card'],
+            foreground=self.colors['primary'],
+            font=('Segoe UI', 24, 'bold')
+        )
+        
+        self.style.configure('StatLabel.TLabel',
+            background=self.colors['card'],
+            foreground=self.colors['on_surface'],
+            font=('Segoe UI', 14, 'bold')
+        )
+        
+
         
         # Status labels
         self.style.configure('Status.TLabel',
@@ -137,27 +180,27 @@ class StyleManager:
     
     def configure_button_styles(self):
         """Configure button styles"""
-        # Navigation buttons
+        # Navigation buttons with modern style
         self.style.configure('Navigation.TButton',
-            background=self.colors['surface'],
+            background=self.colors['card'],
             foreground=self.colors['on_surface'],
-            font=('Segoe UI', 10),
-            padding=(15, 8),
+            font=('Segoe UI', 11, 'bold'),
+            padding=(20, 12),
             relief='flat',
             borderwidth=0
         )
         
         self.style.map('Navigation.TButton',
-            background=[('active', self.colors['hover']),
-                       ('pressed', self.colors['primary_light'])]
+            background=[('active', self.colors['primary_light']),
+                       ('pressed', self.colors['primary'])]
         )
         
         # Primary buttons
         self.style.configure('Primary.TButton',
             background=self.colors['primary'],
             foreground=self.colors['on_primary'],
-            font=('Segoe UI', 10, 'bold'),
-            padding=(20, 10),
+            font=('Segoe UI', 11, 'bold'),
+            padding=(20, 12),
             relief='flat',
             borderwidth=0
         )
@@ -169,17 +212,32 @@ class StyleManager:
         
         # Secondary buttons
         self.style.configure('Secondary.TButton',
-            background=self.colors['light'],
-            foreground=self.colors['on_surface'],
-            font=('Segoe UI', 10),
-            padding=(15, 8),
-            relief='solid',
-            borderwidth=1
+            background=self.colors['secondary'],
+            foreground=self.colors['white'],
+            font=('Segoe UI', 10, 'bold'),
+            padding=(15, 10),
+            relief='flat',
+            borderwidth=0
         )
         
         self.style.map('Secondary.TButton',
-            background=[('active', self.colors['border']),
-                       ('pressed', self.colors['light'])]
+            background=[('active', '#1976D2'),
+                       ('pressed', '#0D47A1')]
+        )
+        
+        # Accent buttons
+        self.style.configure('Accent.TButton',
+            background=self.colors['accent'],
+            foreground=self.colors['white'],
+            font=('Segoe UI', 10, 'bold'),
+            padding=(15, 10),
+            relief='flat',
+            borderwidth=0
+        )
+        
+        self.style.map('Accent.TButton',
+            background=[('active', '#FF8A50'),
+                       ('pressed', '#E64A19')]
         )
         
         # Danger buttons
@@ -187,7 +245,7 @@ class StyleManager:
             background=self.colors['danger'],
             foreground=self.colors['white'],
             font=('Segoe UI', 10, 'bold'),
-            padding=(15, 8),
+            padding=(15, 10),
             relief='flat',
             borderwidth=0
         )
@@ -199,25 +257,32 @@ class StyleManager:
     
     def configure_entry_styles(self):
         """Configure entry and combobox styles"""
+        # Custom entry fields
         self.style.configure('Custom.TEntry',
-            fieldbackground=self.colors['surface'],
-            foreground=self.colors['on_surface'],
-            bordercolor=self.colors['border'],
-            lightcolor=self.colors['border'],
-            darkcolor=self.colors['border'],
-            insertcolor=self.colors['on_surface'],
-            font=('Segoe UI', 10),
-            padding=(8, 6)
+            fieldbackground=self.colors['card'],
+            borderwidth=1,
+            relief='solid',
+            padding=(10, 8),
+            font=('Segoe UI', 11)
         )
         
+        self.style.map('Custom.TEntry',
+            focuscolor=[('!focus', self.colors['border']),
+                       ('focus', self.colors['primary'])]
+        )
+        
+        # Combobox styling
         self.style.configure('Custom.TCombobox',
-            fieldbackground=self.colors['surface'],
-            foreground=self.colors['on_surface'],
-            bordercolor=self.colors['border'],
-            lightcolor=self.colors['border'],
-            darkcolor=self.colors['border'],
-            font=('Segoe UI', 10),
-            padding=(8, 6)
+            fieldbackground=self.colors['card'],
+            borderwidth=1,
+            relief='solid',
+            padding=(10, 8),
+            font=('Segoe UI', 11)
+        )
+        
+        self.style.map('Custom.TCombobox',
+            focuscolor=[('!focus', self.colors['border']),
+                       ('focus', self.colors['primary'])]
         )
     
     def configure_treeview_styles(self):
