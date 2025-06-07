@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "Supermercados D1",
+    "type": "Restaurante",
+    "contact_person": "3234581013",
+    "email": "BRATORRES204@GMAIL.COM",
+    "phone": "3234581013",
+    "address": "BARRANCABERMEJAS",
+    "capacity_info": null,
+    "active": true,
+    "registration_date": "2025-06-07T14:05:31.337593"
+  }
+]

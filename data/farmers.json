@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "Brayan",
+    "email": "bratorre204@gmail.com",
+    "phone": "32345781013",
+    "address": "sdfdsfsfd",
+    "registration_date": "2025-06-07T14:03:14.881908",
+    "active": true
+  }
+]

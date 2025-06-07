@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "id": 1,
+    "sales_point_id": 1,
+    "product_category": "Verduras",
+    "quantity_requested": 20.0,
+    "unit": "kg",
+    "max_price": 2000.0,
+    "required_date": null,
+    "priority": "medium",
+    "status": "pending",
+    "notes": "NO sw",
+    "created_date": "2025-06-07T14:06:09.737587"
+  }
+]
