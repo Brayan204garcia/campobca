@@ -91,6 +91,26 @@ class DistributionModule:
         priority_combo.set('Todas')
         priority_combo.pack(side='left', padx=(5, 0))
         
+        # Action buttons for requests
+        actions_frame = ttk.Frame(parent)
+        actions_frame.pack(fill='x', padx=10, pady=(0, 10))
+        
+        ttk.Button(actions_frame, text="✏️ Editar Solicitud", 
+                  style='Secondary.TButton',
+                  command=self.edit_request).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(actions_frame, text="❌ Cancelar Solicitud", 
+                  style='Danger.TButton',
+                  command=self.cancel_request).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(actions_frame, text="📋 Ver Detalles", 
+                  style='Info.TButton',
+                  command=lambda: self.view_request_details()).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(actions_frame, text="📊 Ver Total a Pagar", 
+                  style='Primary.TButton',
+                  command=self.show_payment_total).pack(side='left')
+        
         # Requests list
         requests_frame = ttk.LabelFrame(parent, text="Lista de Solicitudes", padding=10)
         requests_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
@@ -404,20 +424,13 @@ class DistributionModule:
         fields_frame = ttk.Frame(form_frame)
         fields_frame.pack(fill='x', pady=(8, 0))
         
-        # Row 1: Price and Priority
+        # Row 1: Priority and Date
         row1_frame = ttk.Frame(fields_frame)
         row1_frame.pack(fill='x', pady=(0, 5))
         
-        # Price column
-        price_frame = ttk.Frame(row1_frame)
-        price_frame.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        ttk.Label(price_frame, text="Precio Máximo Total:").pack(anchor='w')
-        self.request_max_price_var = tk.StringVar()
-        ttk.Entry(price_frame, textvariable=self.request_max_price_var).pack(fill='x')
-        
         # Priority column
         priority_frame = ttk.Frame(row1_frame)
-        priority_frame.pack(side='left', fill='x', expand=True)
+        priority_frame.pack(side='left', fill='x', expand=True, padx=(0, 10))
         ttk.Label(priority_frame, text="Prioridad:").pack(anchor='w')
         self.request_priority_var = tk.StringVar()
         priority_combo = ttk.Combobox(priority_frame, textvariable=self.request_priority_var, 
@@ -426,18 +439,17 @@ class DistributionModule:
         priority_combo.set('medium')
         priority_combo.pack(fill='x')
         
-        # Row 2: Required date
-        row2_frame = ttk.Frame(fields_frame)
-        row2_frame.pack(fill='x', pady=(0, 5))
-        
-        ttk.Label(row2_frame, text="Fecha Requerida:").pack(anchor='w')
-        date_frame = ttk.Frame(row2_frame)
-        date_frame.pack(fill='x')
+        # Date column
+        date_frame = ttk.Frame(row1_frame)
+        date_frame.pack(side='left', fill='x', expand=True)
+        ttk.Label(date_frame, text="Fecha Requerida:").pack(anchor='w')
+        date_input_frame = ttk.Frame(date_frame)
+        date_input_frame.pack(fill='x')
         
         self.request_required_date_var = tk.StringVar()
-        ttk.Entry(date_frame, textvariable=self.request_required_date_var, 
+        ttk.Entry(date_input_frame, textvariable=self.request_required_date_var, 
                  style='Custom.TEntry', width=15).pack(side='left')
-        ttk.Label(date_frame, text="(YYYY-MM-DD)").pack(side='left', padx=(5, 0))
+        ttk.Label(date_input_frame, text="(YYYY-MM-DD)").pack(side='left', padx=(5, 0))
         
         # Notes
         ttk.Label(fields_frame, text="Notas Adicionales:").pack(anchor='w', pady=(5, 2))
@@ -553,16 +565,8 @@ class DistributionModule:
                 messagebox.showerror("Error", "Debe seleccionar al menos un producto")
                 return
             
-            # Validate max price if provided
-            max_price = None
-            if self.request_max_price_var.get().strip():
-                try:
-                    max_price = float(self.request_max_price_var.get())
-                    if max_price <= 0:
-                        raise ValueError("El precio debe ser positivo")
-                except ValueError as e:
-                    messagebox.showerror("Error", f"Error en precio máximo: {str(e)}")
-                    return
+            # Calculate total price automatically based on selected products
+            total_price = sum([p['price'] * p['quantity'] for p in self.selected_products])
             
             # Validate date if provided
             required_date = self.request_required_date_var.get().strip()
@@ -583,14 +587,15 @@ class DistributionModule:
                 'sales_point_id': sales_point_id,
                 'product_ids': product_ids,
                 'quantities': quantities,
-                'max_price': max_price,
+                'total_price': total_price,
                 'required_date': required_date if required_date else None,
                 'priority': self.request_priority_var.get(),
                 'notes': self.request_notes_text.get(1.0, tk.END).strip() if self.request_notes_text.get(1.0, tk.END).strip() else None
             }
             
-            request_id = self.db.add_distribution_request(request_data)
-            messagebox.showinfo("Éxito", f"Solicitud de distribución creada con ID: {request_id}")
+            # Create request and automatically generate assignments and update inventory
+            request_id = self.db.add_distribution_request_with_auto_assignment(request_data)
+            messagebox.showinfo("Éxito", f"Solicitud creada con ID: {request_id}\nTotal a pagar: ${total_price:.2f}\nInventario actualizado automáticamente")
             
             self.request_form_window.destroy()
             self.refresh_requests()
@@ -598,6 +603,133 @@ class DistributionModule:
             
         except Exception as e:
             messagebox.showerror("Error", f"Error guardando solicitud: {str(e)}")
+    
+    def edit_request(self):
+        """Edit the selected distribution request"""
+        selection = self.requests_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una solicitud para editar")
+            return
+        
+        item = self.requests_tree.item(selection[0])
+        request_id = int(item['values'][0])
+        
+        # Get request details
+        try:
+            requests = self.db.get_distribution_requests()
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                messagebox.showerror("Error", "Solicitud no encontrada")
+                return
+            
+            # Check if request can be edited (only pending or assigned status)
+            if request['status'] not in ['pending', 'assigned']:
+                messagebox.showwarning("Advertencia", "Solo se pueden editar solicitudes pendientes o asignadas")
+                return
+            
+            self.show_edit_request_form(request)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando solicitud: {str(e)}")
+    
+    def cancel_request(self):
+        """Cancel the selected distribution request"""
+        selection = self.requests_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una solicitud para cancelar")
+            return
+        
+        item = self.requests_tree.item(selection[0])
+        request_id = int(item['values'][0])
+        
+        # Confirm cancellation
+        if not messagebox.askyesno("Confirmar", "¿Está seguro de cancelar esta solicitud?\nEsto restaurará el inventario de productos."):
+            return
+        
+        try:
+            self.db.cancel_distribution_request(request_id)
+            messagebox.showinfo("Éxito", "Solicitud cancelada e inventario restaurado")
+            self.refresh_requests()
+            self.refresh_matching()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cancelando solicitud: {str(e)}")
+    
+    def show_payment_total(self):
+        """Show payment total for the selected request"""
+        selection = self.requests_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver el total")
+            return
+        
+        item = self.requests_tree.item(selection[0])
+        request_id = int(item['values'][0])
+        
+        try:
+            requests = self.db.get_distribution_requests()
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                messagebox.showerror("Error", "Solicitud no encontrada")
+                return
+            
+            # Show payment details window
+            payment_window = tk.Toplevel(self.frame)
+            payment_window.title(f"Total a Pagar - Solicitud #{request_id}")
+            payment_window.geometry("500x400")
+            payment_window.transient(self.frame)
+            payment_window.grab_set()
+            
+            # Payment details frame
+            details_frame = ttk.Frame(payment_window, padding=20)
+            details_frame.pack(fill='both', expand=True)
+            
+            # Header
+            ttk.Label(details_frame, text=f"Solicitud #{request_id}", style='Heading.TLabel').pack(pady=(0, 10))
+            ttk.Label(details_frame, text=f"Punto de Venta: {request['sales_point_name']}").pack(anchor='w')
+            ttk.Label(details_frame, text=f"Estado: {request['status']}").pack(anchor='w', pady=(0, 10))
+            
+            # Products breakdown
+            ttk.Label(details_frame, text="Desglose de Productos:", font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 5))
+            
+            # Create treeview for product details
+            columns = ('Producto', 'Cantidad', 'Precio Unit.', 'Subtotal')
+            products_tree = ttk.Treeview(details_frame, columns=columns, show='headings', height=8)
+            
+            for col in columns:
+                products_tree.heading(col, text=col)
+                if col == 'Producto':
+                    products_tree.column(col, width=200)
+                else:
+                    products_tree.column(col, width=100)
+            
+            products_tree.pack(fill='both', expand=True, pady=5)
+            
+            # Load product details
+            total_amount = 0
+            for product_detail in request.get('product_details', []):
+                subtotal = product_detail.get('quantity_requested', 0) * product_detail.get('price_per_unit', 0)
+                total_amount += subtotal
+                
+                products_tree.insert('', 'end', values=(
+                    product_detail.get('name', 'N/A'),
+                    f"{product_detail.get('quantity_requested', 0):.1f} {product_detail.get('unit', '')}",
+                    f"${product_detail.get('price_per_unit', 0):.2f}",
+                    f"${subtotal:.2f}"
+                ))
+            
+            # Total
+            total_frame = ttk.Frame(details_frame)
+            total_frame.pack(fill='x', pady=(10, 0))
+            
+            ttk.Label(total_frame, text=f"TOTAL A PAGAR: ${total_amount:.2f}", 
+                     font=('Segoe UI', 12, 'bold')).pack(side='right')
+            
+            # Close button
+            ttk.Button(details_frame, text="Cerrar", 
+                      command=payment_window.destroy).pack(pady=(10, 0))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error mostrando total: {str(e)}")
     
     def refresh_requests(self):
         """Refresh distribution requests list"""

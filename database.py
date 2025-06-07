@@ -268,7 +268,7 @@ class DatabaseManager:
                 'sales_point_id': request_data['sales_point_id'],
                 'product_ids': request_data['product_ids'],  # Lista de IDs de productos específicos
                 'quantities': request_data['quantities'],   # Cantidades correspondientes
-                'max_price': request_data.get('max_price'),
+                'total_price': request_data.get('total_price', 0),
                 'required_date': request_data.get('required_date'),
                 'priority': request_data.get('priority', 'medium'),
                 'status': 'pending',
@@ -282,6 +282,132 @@ class DatabaseManager:
             
         except Exception as e:
             raise Exception(f"Error agregando solicitud de distribución: {str(e)}")
+    
+    def add_distribution_request_with_auto_assignment(self, request_data: Dict) -> int:
+        """Add a new distribution request with automatic assignment and inventory update"""
+        try:
+            # Create the distribution request
+            request_id = self.add_distribution_request(request_data)
+            
+            # Get product and farmer information
+            products = self.load_json(self.products_file)
+            farmers = self.load_json(self.farmers_file)
+            
+            # Create assignments automatically and update inventory
+            assignments = self.load_json(self.distribution_assignments_file)
+            
+            for i, product_id in enumerate(request_data['product_ids']):
+                quantity_requested = request_data['quantities'][i]
+                
+                # Find the product
+                product = next((p for p in products if p['id'] == product_id), None)
+                if not product:
+                    continue
+                
+                # Check if enough quantity is available
+                if product['quantity'] < quantity_requested:
+                    raise Exception(f"Cantidad insuficiente para {product['name']}. Disponible: {product['quantity']}, Solicitado: {quantity_requested}")
+                
+                # Update product inventory
+                product['quantity'] -= quantity_requested
+                if product['quantity'] == 0:
+                    product['available'] = False
+                
+                # Create automatic assignment
+                assignment_id = self.get_next_id(assignments)
+                new_assignment = {
+                    'id': assignment_id,
+                    'request_id': request_id,
+                    'product_id': product_id,
+                    'farmer_id': product['farmer_id'],
+                    'quantity_assigned': quantity_requested,
+                    'unit_price': product['price_per_unit'],
+                    'total_price': product['price_per_unit'] * quantity_requested,
+                    'status': 'assigned',
+                    'assigned_date': datetime.now().isoformat(),
+                    'notes': 'Asignación automática al crear solicitud'
+                }
+                assignments.append(new_assignment)
+            
+            # Update request status to assigned
+            requests = self.load_json(self.distribution_requests_file)
+            for request in requests:
+                if request['id'] == request_id:
+                    request['status'] = 'assigned'
+                    break
+            
+            # Save all changes
+            self.save_json(self.products_file, products)
+            self.save_json(self.distribution_assignments_file, assignments)
+            self.save_json(self.distribution_requests_file, requests)
+            
+            return request_id
+            
+        except Exception as e:
+            raise Exception(f"Error creando solicitud con asignación automática: {str(e)}")
+    
+    def cancel_distribution_request(self, request_id: int):
+        """Cancel a distribution request and restore inventory"""
+        try:
+            # Get request details
+            requests = self.load_json(self.distribution_requests_file)
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                raise Exception("Solicitud no encontrada")
+            
+            if request['status'] == 'cancelled':
+                raise Exception("La solicitud ya está cancelada")
+            
+            # Restore inventory for each product
+            products = self.load_json(self.products_file)
+            for i, product_id in enumerate(request['product_ids']):
+                quantity_to_restore = request['quantities'][i]
+                
+                # Find and update the product
+                for product in products:
+                    if product['id'] == product_id:
+                        product['quantity'] += quantity_to_restore
+                        product['available'] = True
+                        break
+            
+            # Cancel related assignments
+            assignments = self.load_json(self.distribution_assignments_file)
+            for assignment in assignments:
+                if assignment['request_id'] == request_id:
+                    assignment['status'] = 'cancelled'
+            
+            # Update request status
+            request['status'] = 'cancelled'
+            request['cancelled_date'] = datetime.now().isoformat()
+            
+            # Save changes
+            self.save_json(self.distribution_requests_file, requests)
+            self.save_json(self.distribution_assignments_file, assignments)
+            self.save_json(self.products_file, products)
+            
+        except Exception as e:
+            raise Exception(f"Error cancelando solicitud: {str(e)}")
+    
+    def update_distribution_request(self, request_id: int, request_data: Dict):
+        """Update a distribution request"""
+        try:
+            requests = self.load_json(self.distribution_requests_file)
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                raise Exception("Solicitud no encontrada")
+            
+            # Update request fields
+            request.update({
+                'priority': request_data.get('priority', request['priority']),
+                'required_date': request_data.get('required_date', request['required_date']),
+                'notes': request_data.get('notes', request['notes']),
+                'modified_date': datetime.now().isoformat()
+            })
+            
+            self.save_json(self.distribution_requests_file, requests)
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando solicitud: {str(e)}")
     
     def get_distribution_requests(self, status: Optional[str] = None) -> List[Dict]:
         """Get distribution requests with sales point and product information"""
