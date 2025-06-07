@@ -231,6 +231,29 @@ class DatabaseManager:
         except Exception as e:
             raise Exception(f"Error obteniendo puntos de venta: {str(e)}")
     
+    def update_sales_point(self, sales_point_id: int, sales_point_data: Dict):
+        """Update sales point information"""
+        try:
+            sales_points = self.load_json(self.sales_points_file)
+            
+            for sales_point in sales_points:
+                if sales_point['id'] == sales_point_id:
+                    sales_point.update({
+                        'name': sales_point_data['name'],
+                        'type': sales_point_data['type'],
+                        'contact_person': sales_point_data.get('contact_person'),
+                        'email': sales_point_data.get('email'),
+                        'phone': sales_point_data.get('phone'),
+                        'address': sales_point_data['address'],
+                        'capacity_info': sales_point_data.get('capacity_info')
+                    })
+                    break
+            
+            self.save_json(self.sales_points_file, sales_points)
+            
+        except Exception as e:
+            raise Exception(f"Error actualizando punto de venta: {str(e)}")
+    
     # Distribution operations
     def add_distribution_request(self, request_data: Dict) -> int:
         """Add a new distribution request"""

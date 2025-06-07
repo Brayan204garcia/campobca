@@ -176,19 +176,27 @@ class Dashboard:
             alerts_text.pack(fill='x')
             
             # Get products expiring soon
-            conn = self.db.connect()
-            cursor = conn.cursor()
+            products = self.db.get_products()
+            farmers = self.db.get_farmers()
             
-            cursor.execute('''
-                SELECT p.name, p.expiry_date, f.name as farmer_name
-                FROM products p
-                JOIN farmers f ON p.farmer_id = f.id
-                WHERE p.available = 1 AND p.expiry_date <= date('now', '+7 days')
-                ORDER BY p.expiry_date
-            ''')
+            # Create farmer lookup
+            farmer_lookup = {f['id']: f['name'] for f in farmers}
             
-            expiring_products = cursor.fetchall()
-            conn.close()
+            # Find expiring products (within 7 days)
+            from datetime import datetime, timedelta
+            future_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+            
+            expiring_products = []
+            for product in products:
+                if not product.get('available', True):
+                    continue
+                expiry_date = product.get('expiry_date')
+                if expiry_date and expiry_date <= future_date:
+                    product['farmer_name'] = farmer_lookup.get(product.get('farmer_id'), 'Desconocido')
+                    expiring_products.append(product)
+            
+            # Sort by expiry date
+            expiring_products.sort(key=lambda x: x.get('expiry_date', ''))
             
             if expiring_products:
                 alerts_text.insert('end', "⚠️ PRODUCTOS POR VENCER:\n", 'warning')
