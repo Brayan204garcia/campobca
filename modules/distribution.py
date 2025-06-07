@@ -146,6 +146,9 @@ class DistributionModule:
         self.requests_tree.bind('<<TreeviewSelect>>', self.on_request_select)
         self.requests_tree.bind('<Double-1>', self.view_request_details)
         
+        # Store selected request for button updates
+        self.selected_request = None
+        
         # Load requests
         self.refresh_requests()
     
@@ -709,15 +712,31 @@ class DistributionModule:
             # Load product details
             total_amount = 0
             for product_detail in request.get('product_details', []):
-                subtotal = product_detail.get('quantity_requested', 0) * product_detail.get('price_per_unit', 0)
+                subtotal = product_detail.get('line_total', 0)
                 total_amount += subtotal
                 
                 products_tree.insert('', 'end', values=(
-                    product_detail.get('name', 'N/A'),
-                    f"{product_detail.get('quantity_requested', 0):.1f} {product_detail.get('unit', '')}",
+                    product_detail.get('product_name', 'N/A'),
+                    f"{product_detail.get('quantity', 0)} {product_detail.get('unit', '')}",
                     f"${product_detail.get('price_per_unit', 0):.2f}",
                     f"${subtotal:.2f}"
                 ))
+            
+            # Total amount
+            ttk.Separator(details_frame, orient='horizontal').pack(fill='x', pady=10)
+            ttk.Label(details_frame, text=f"Total: ${total_amount:.2f}", 
+                     font=('Segoe UI', 12, 'bold')).pack(anchor='e')
+            
+            # Status-specific information
+            if request['status'] == 'entregado':
+                ttk.Label(details_frame, text="Estado: ENTREGADO ✓", 
+                         foreground='green', font=('Segoe UI', 10, 'bold')).pack(anchor='w', pady=(10, 0))
+                if 'delivered_date' in request:
+                    ttk.Label(details_frame, text=f"Fecha de entrega: {request['delivered_date'][:10]}").pack(anchor='w')
+            
+            # Close button
+            ttk.Button(details_frame, text="Cerrar", 
+                      command=payment_window.destroy).pack(pady=(20, 0))
             
             # Total
             total_frame = ttk.Frame(details_frame)
@@ -1116,7 +1135,18 @@ class DistributionModule:
     
     def on_request_select(self, event):
         """Handle request selection"""
-        pass
+        selection = self.requests_tree.selection()
+        if selection:
+            item = self.requests_tree.item(selection[0])
+            request_status = item['values'][7]  # Status is in column 7
+            
+            # Update button text based on status
+            if request_status == 'entregado':
+                self.payment_btn.config(text="📄 Ver Factura", state='normal')
+            else:
+                self.payment_btn.config(text="💰 Ver Total a Pagar", state='normal')
+        else:
+            self.payment_btn.config(state='disabled')
     
     def view_request_details(self, event):
         """View detailed information about a request"""

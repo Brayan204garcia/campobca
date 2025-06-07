@@ -43,10 +43,10 @@ class DeliveriesModule:
         notebook.add(deliveries_frame, text="Entregas")
         self.create_deliveries_management(deliveries_frame)
         
-        # Tab 2: Asignaciones Pendientes
-        assignments_frame = ttk.Frame(notebook)
-        notebook.add(assignments_frame, text="Asignaciones Pendientes")
-        self.create_assignments_management(assignments_frame)
+        # Tab 2: Solicitudes Confirmadas
+        requests_frame = ttk.Frame(notebook)
+        notebook.add(requests_frame, text="Solicitudes Confirmadas")
+        self.create_requests_management(requests_frame)
     
     def create_deliveries_management(self, parent):
         """Create deliveries management interface"""
@@ -62,7 +62,7 @@ class DeliveriesModule:
         ttk.Label(filter_frame, text="Estado:").grid(row=0, column=0, padx=5, pady=5, sticky='w')
         self.delivery_status_var = tk.StringVar(value="all")
         status_combo = ttk.Combobox(filter_frame, textvariable=self.delivery_status_var, width=15)
-        status_combo['values'] = ("all", "scheduled", "in_transit", "delivered", "cancelled")
+        status_combo['values'] = ("all", "programado", "en_camino", "entregado", "cancelado")
         status_combo.grid(row=0, column=1, padx=5, pady=5)
         status_combo.bind('<<ComboboxSelected>>', self.filter_deliveries)
         
@@ -168,11 +168,63 @@ class DeliveriesModule:
         
         # Bind double-click event
         self.assignments_tree.bind('<Double-1>', self.schedule_delivery)
+        
+        # Load initial data
+        self.refresh_assignments()
+    
+    def create_requests_management(self, parent):
+        """Create requests management interface for delivery scheduling"""
+        # Controls frame
+        controls_frame = ttk.Frame(parent)
+        controls_frame.pack(fill='x', padx=10, pady=5)
+        
+        # Action buttons
+        buttons_frame = ttk.Frame(controls_frame)
+        buttons_frame.pack(fill='x', pady=5)
+        
+        ttk.Button(buttons_frame, text="Programar Entrega", 
+                  command=self.schedule_delivery_from_request).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text="Ver Detalles", 
+                  command=self.view_request_details).pack(side='left', padx=5)
+        
+        # Requests list
+        list_frame = ttk.LabelFrame(parent, text="Solicitudes Confirmadas Pendientes de Entrega")
+        list_frame.pack(fill='both', expand=True, padx=10, pady=5)
+        
+        # Treeview for confirmed requests
+        columns = ('ID', 'Punto de Venta', 'Dirección', 'Productos', 'Total', 'Fecha Confirmación', 'Estado')
+        self.requests_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
+        
+        # Configure columns
+        column_widths = [50, 150, 200, 150, 100, 120, 100]
+        for i, (col, width) in enumerate(zip(columns, column_widths)):
+            self.requests_tree.heading(col, text=col)
+            self.requests_tree.column(col, width=width, minwidth=50)
+        
+        # Scrollbars for requests tree
+        v_scrollbar3 = ttk.Scrollbar(list_frame, orient='vertical', command=self.requests_tree.yview)
+        h_scrollbar3 = ttk.Scrollbar(list_frame, orient='horizontal', command=self.requests_tree.xview)
+        self.requests_tree.configure(yscrollcommand=v_scrollbar3.set, xscrollcommand=h_scrollbar3.set)
+        
+        # Pack requests tree and scrollbars
+        self.requests_tree.grid(row=0, column=0, sticky='nsew')
+        v_scrollbar3.grid(row=0, column=1, sticky='ns')
+        h_scrollbar3.grid(row=1, column=0, sticky='ew')
+        
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        
+        # Bind double-click event
+        self.requests_tree.bind('<Double-1>', self.schedule_delivery_from_request)
+        
+        # Load initial data
+        self.refresh_requests()
     
     def refresh_data(self):
         """Refresh all data"""
         self.refresh_deliveries()
         self.refresh_assignments()
+        self.refresh_requests()
     
     def refresh_deliveries(self):
         """Refresh deliveries list"""
@@ -256,6 +308,236 @@ class DeliveriesModule:
                 ))
         except Exception as e:
             messagebox.showerror("Error", f"Error cargando asignaciones: {str(e)}")
+    
+    def refresh_requests(self):
+        """Refresh confirmed requests list for delivery scheduling"""
+        try:
+            # Clear existing data
+            for item in self.requests_tree.get_children():
+                self.requests_tree.delete(item)
+            
+            # Get confirmed requests that are ready for delivery
+            requests = self.db.get_distribution_requests(status='confirmado')
+            
+            for request in requests:
+                # Format product list
+                product_list = ', '.join([pd['product_name'] for pd in request.get('product_details', [])])
+                if len(product_list) > 30:
+                    product_list = product_list[:30] + "..."
+                
+                self.requests_tree.insert('', 'end', values=(
+                    request['id'],
+                    request.get('sales_point_name', 'N/A'),
+                    request.get('sales_point_address', 'N/A'),
+                    product_list,
+                    f"${request.get('total_amount', 0):.2f}",
+                    request.get('created_date', '')[:10] if request.get('created_date') else 'N/A',
+                    request.get('status', 'N/A')
+                ))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando solicitudes: {str(e)}")
+    
+    def schedule_delivery_from_request(self):
+        """Schedule delivery from selected confirmed request"""
+        selection = self.requests_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una solicitud para programar entrega")
+            return
+        
+        request_id = int(self.requests_tree.item(selection[0])['values'][0])
+        
+        # Get request details
+        try:
+            requests = self.db.get_distribution_requests()
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                messagebox.showerror("Error", "Solicitud no encontrada")
+                return
+            
+            # Create delivery scheduling window
+            delivery_window = tk.Toplevel(self.parent)
+            delivery_window.title(f"Programar Entrega - Solicitud #{request_id}")
+            delivery_window.geometry("500x600")
+            delivery_window.transient(self.parent)
+            delivery_window.grab_set()
+            
+            # Main frame
+            main_frame = ttk.Frame(delivery_window, padding=20)
+            main_frame.pack(fill='both', expand=True)
+            
+            # Title
+            ttk.Label(main_frame, text=f"Programar Entrega - Solicitud #{request_id}", 
+                     style='Heading.TLabel').pack(pady=(0, 20))
+            
+            # Request info
+            info_frame = ttk.LabelFrame(main_frame, text="Información de la Solicitud", padding=10)
+            info_frame.pack(fill='x', pady=(0, 20))
+            
+            ttk.Label(info_frame, text=f"Punto de Venta: {request.get('sales_point_name', 'N/A')}").pack(anchor='w')
+            ttk.Label(info_frame, text=f"Dirección: {request.get('sales_point_address', 'N/A')}").pack(anchor='w')
+            ttk.Label(info_frame, text=f"Total: ${request.get('total_amount', 0):.2f}").pack(anchor='w')
+            
+            # Driver selection
+            driver_frame = ttk.LabelFrame(main_frame, text="Seleccionar Conductor", padding=10)
+            driver_frame.pack(fill='x', pady=(0, 15))
+            
+            ttk.Label(driver_frame, text="Conductor *:").pack(anchor='w', pady=(0, 5))
+            driver_var = tk.StringVar()
+            driver_combo = ttk.Combobox(driver_frame, textvariable=driver_var, style='Custom.TCombobox')
+            
+            # Load drivers
+            drivers = self.db.get_drivers(active_only=True)
+            driver_values = [f"{d['id']} - {d['name']} ({d['vehicle_type']} - {d['vehicle_plate']})" for d in drivers]
+            driver_combo['values'] = driver_values
+            driver_combo.pack(fill='x', ipady=5)
+            
+            # Delivery details
+            details_frame = ttk.LabelFrame(main_frame, text="Detalles de Entrega", padding=10)
+            details_frame.pack(fill='x', pady=(0, 15))
+            
+            # Scheduled date
+            ttk.Label(details_frame, text="Fecha Programada *:").pack(anchor='w', pady=(0, 5))
+            date_var = tk.StringVar(value=datetime.now().strftime('%Y-%m-%d'))
+            date_entry = ttk.Entry(details_frame, textvariable=date_var, style='Custom.TEntry')
+            date_entry.pack(fill='x', ipady=5, pady=(0, 10))
+            
+            # Estimated time
+            ttk.Label(details_frame, text="Hora Estimada:").pack(anchor='w', pady=(0, 5))
+            time_var = tk.StringVar()
+            time_entry = ttk.Entry(details_frame, textvariable=time_var, style='Custom.TEntry')
+            time_entry.pack(fill='x', ipady=5, pady=(0, 10))
+            
+            # Special instructions
+            ttk.Label(details_frame, text="Instrucciones Especiales:").pack(anchor='w', pady=(0, 5))
+            instructions_text = tk.Text(details_frame, height=4, wrap=tk.WORD)
+            instructions_text.pack(fill='x', pady=(0, 10))
+            
+            # Buttons
+            buttons_frame = ttk.Frame(main_frame)
+            buttons_frame.pack(fill='x', pady=(20, 0))
+            
+            def save_delivery():
+                """Save delivery and close window"""
+                if not driver_var.get():
+                    messagebox.showerror("Error", "Debe seleccionar un conductor")
+                    return
+                
+                if not date_var.get():
+                    messagebox.showerror("Error", "Debe especificar la fecha programada")
+                    return
+                
+                try:
+                    driver_id = int(driver_var.get().split(' - ')[0])
+                    
+                    delivery_data = {
+                        'request_id': request_id,
+                        'driver_id': driver_id,
+                        'scheduled_date': date_var.get(),
+                        'delivery_address': request.get('sales_point_address', ''),
+                        'estimated_time': time_var.get() if time_var.get() else None,
+                        'special_instructions': instructions_text.get(1.0, tk.END).strip() if instructions_text.get(1.0, tk.END).strip() else None
+                    }
+                    
+                    delivery_id = self.db.add_delivery(delivery_data)
+                    messagebox.showinfo("Éxito", f"Entrega programada con ID: {delivery_id}")
+                    
+                    self.refresh_deliveries()
+                    self.refresh_requests()
+                    delivery_window.destroy()
+                    
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error programando entrega: {str(e)}")
+            
+            ttk.Button(buttons_frame, text="Cancelar", style='Secondary.TButton',
+                      command=delivery_window.destroy).pack(side='right', padx=(10, 0))
+            
+            ttk.Button(buttons_frame, text="Programar Entrega", style='Primary.TButton',
+                      command=save_delivery).pack(side='right')
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al programar entrega: {str(e)}")
+    
+    def view_request_details(self):
+        """View details of selected request"""
+        selection = self.requests_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver detalles")
+            return
+        
+        request_id = int(self.requests_tree.item(selection[0])['values'][0])
+        
+        try:
+            requests = self.db.get_distribution_requests()
+            request = next((r for r in requests if r['id'] == request_id), None)
+            if not request:
+                messagebox.showerror("Error", "Solicitud no encontrada")
+                return
+            
+            # Create details window
+            details_window = tk.Toplevel(self.parent)
+            details_window.title(f"Detalles de Solicitud #{request_id}")
+            details_window.geometry("600x500")
+            details_window.transient(self.parent)
+            details_window.grab_set()
+            
+            # Main frame
+            main_frame = ttk.Frame(details_window, padding=20)
+            main_frame.pack(fill='both', expand=True)
+            
+            # Title
+            ttk.Label(main_frame, text=f"Solicitud #{request_id}", 
+                     style='Heading.TLabel').pack(pady=(0, 20))
+            
+            # Request information
+            info_frame = ttk.LabelFrame(main_frame, text="Información General", padding=10)
+            info_frame.pack(fill='x', pady=(0, 15))
+            
+            ttk.Label(info_frame, text=f"Punto de Venta: {request.get('sales_point_name', 'N/A')}").pack(anchor='w')
+            ttk.Label(info_frame, text=f"Dirección: {request.get('sales_point_address', 'N/A')}").pack(anchor='w')
+            ttk.Label(info_frame, text=f"Estado: {request.get('status', 'N/A')}").pack(anchor='w')
+            ttk.Label(info_frame, text=f"Fecha de Creación: {request.get('created_date', 'N/A')[:10]}").pack(anchor='w')
+            
+            # Products details
+            products_frame = ttk.LabelFrame(main_frame, text="Productos", padding=10)
+            products_frame.pack(fill='both', expand=True, pady=(0, 15))
+            
+            # Products treeview
+            columns = ('Producto', 'Cantidad', 'Precio Unit.', 'Subtotal')
+            products_tree = ttk.Treeview(products_frame, columns=columns, show='headings', height=8)
+            
+            for col in columns:
+                products_tree.heading(col, text=col)
+                if col == 'Producto':
+                    products_tree.column(col, width=200)
+                else:
+                    products_tree.column(col, width=100)
+            
+            products_tree.pack(fill='both', expand=True)
+            
+            # Load product details
+            total_amount = 0
+            for product_detail in request.get('product_details', []):
+                subtotal = product_detail.get('line_total', 0)
+                total_amount += subtotal
+                
+                products_tree.insert('', 'end', values=(
+                    product_detail.get('product_name', 'N/A'),
+                    f"{product_detail.get('quantity', 0)} {product_detail.get('unit', '')}",
+                    f"${product_detail.get('price_per_unit', 0):.2f}",
+                    f"${subtotal:.2f}"
+                ))
+            
+            # Total
+            ttk.Label(main_frame, text=f"Total: ${total_amount:.2f}", 
+                     font=('Segoe UI', 12, 'bold')).pack(anchor='e', pady=(10, 0))
+            
+            # Close button
+            ttk.Button(main_frame, text="Cerrar", 
+                      command=details_window.destroy).pack(pady=(20, 0))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al mostrar detalles: {str(e)}")
     
     def schedule_delivery(self):
         """Schedule a delivery for selected assignment"""
