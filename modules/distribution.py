@@ -28,26 +28,26 @@ class DistributionModule:
     
     def create_distribution_interface(self):
         """Create the distribution coordination interface"""
-        # Create notebook for tabs
-        notebook = ttk.Notebook(self.frame, style='Custom.TNotebook')
-        notebook.pack(fill='both', expand=True, padx=20, pady=20)
+        # Header
+        header_frame = ttk.Frame(self.frame, style='Header.TFrame')
+        header_frame.pack(fill='x', padx=20, pady=(20, 0))
         
-        # Distribution requests tab
-        requests_tab = ttk.Frame(notebook)
-        notebook.add(requests_tab, text="Solicitudes de Distribución")
+        # Title and subtitle
+        title_label = ttk.Label(header_frame, text="Gestión de Solicitudes de Distribución", 
+                               style='Title.TLabel')
+        title_label.pack(anchor='w')
         
-        # Product matching tab
-        matching_tab = ttk.Frame(notebook)
-        notebook.add(matching_tab, text="Coordinación de Productos")
+        subtitle_label = ttk.Label(header_frame, 
+                                  text="Administra las solicitudes de distribución de productos", 
+                                  style='Subtitle.TLabel')
+        subtitle_label.pack(anchor='w', pady=(5, 0))
         
-        # Assignments tab
-        assignments_tab = ttk.Frame(notebook)
-        notebook.add(assignments_tab, text="Asignaciones Activas")
+        # Content frame
+        content_frame = ttk.Frame(self.frame)
+        content_frame.pack(fill='both', expand=True, padx=20, pady=(10, 20))
         
-        # Create interfaces
-        self.create_requests_management(requests_tab)
-        self.create_product_matching(matching_tab)
-        self.create_assignments_management(assignments_tab)
+        # Create requests management interface
+        self.create_requests_management(content_frame)
     
     def create_requests_management(self, parent):
         """Create distribution requests management interface"""
@@ -78,7 +78,7 @@ class DistributionModule:
         self.status_filter_var.trace('w', self.filter_requests)
         status_combo = ttk.Combobox(filter_frame, textvariable=self.status_filter_var, 
                                   style='Custom.TCombobox', state='readonly', width=15)
-        status_combo['values'] = ['Todos', 'pending', 'assigned', 'completed', 'cancelled']
+        status_combo['values'] = ['Todos', 'pendiente', 'confirmado', 'en_transito', 'entregado', 'cancelado']
         status_combo.set('Todos')
         status_combo.pack(side='left', padx=(5, 10))
         
@@ -107,9 +107,11 @@ class DistributionModule:
                   style='Info.TButton',
                   command=lambda: self.view_request_details(None)).pack(side='left', padx=(0, 10))
         
-        ttk.Button(actions_frame, text="📊 Ver Total a Pagar", 
-                  style='Primary.TButton',
-                  command=self.show_payment_total).pack(side='left')
+        # Payment/Invoice button (changes based on status)
+        self.payment_btn = ttk.Button(actions_frame, text="💰 Ver Total a Pagar",
+                                     style='Primary.TButton',
+                                     command=self.show_payment_or_invoice, state='disabled')
+        self.payment_btn.pack(side='left')
         
         # Requests list
         requests_frame = ttk.LabelFrame(parent, text="Lista de Solicitudes", padding=10)
@@ -655,8 +657,8 @@ class DistributionModule:
         except Exception as e:
             messagebox.showerror("Error", f"Error cancelando solicitud: {str(e)}")
     
-    def show_payment_total(self):
-        """Show payment total for the selected request"""
+    def show_payment_or_invoice(self):
+        """Show payment total or invoice based on request status"""
         selection = self.requests_tree.selection()
         if not selection:
             messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver el total")

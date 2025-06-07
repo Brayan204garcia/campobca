@@ -8,6 +8,7 @@ from modules.dashboard import Dashboard
 from modules.farmers import FarmersModule
 from modules.sales_points import SalesPointsModule  
 from modules.distribution import DistributionModule
+from modules.drivers import DriversModule
 from modules.deliveries import DeliveriesModule
 from modules.reports import ReportsModule
 
@@ -87,6 +88,7 @@ class AgriculturalCooperativeApp:
             ("👨‍🌾 Agricultores", 'farmers'),
             ("🏪 Puntos de Venta", 'sales_points'),
             ("🚚 Distribución", 'distribution'),
+            ("🚗 Conductores", 'drivers'),
             ("🚛 Entregas", 'deliveries'),
             ("📈 Reportes", 'reports')
         ]
@@ -116,6 +118,8 @@ class AgriculturalCooperativeApp:
                 self.modules[module_name] = SalesPointsModule(self.content_frame, self.db)
             elif module_name == 'distribution':
                 self.modules[module_name] = DistributionModule(self.content_frame, self.db)
+            elif module_name == 'drivers':
+                self.modules[module_name] = DriversModule(self.content_frame, self.db)
             elif module_name == 'deliveries':
                 self.modules[module_name] = DeliveriesModule(self.content_frame, self.db)
             elif module_name == 'reports':
