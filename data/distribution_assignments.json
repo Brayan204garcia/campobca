@@ -1,1 +1,50 @@
-[]
+[
+  {
+    "id": 1,
+    "request_id": 2,
+    "product_id": 1,
+    "farmer_id": 1,
+    "quantity_assigned": 20.0,
+    "unit_price": 1000.0,
+    "total_price": 20000.0,
+    "status": "cancelled",
+    "assigned_date": "2025-06-07T17:54:27.965112",
+    "notes": "Asignación automática al crear solicitud"
+  },
+  {
+    "id": 2,
+    "request_id": 2,
+    "product_id": 2,
+    "farmer_id": 1,
+    "quantity_assigned": 15.0,
+    "unit_price": 2000.0,
+    "total_price": 30000.0,
+    "status": "cancelled",
+    "assigned_date": "2025-06-07T17:54:27.965112",
+    "notes": "Asignación automática al crear solicitud"
+  },
+  {
+    "id": 3,
+    "request_id": 3,
+    "product_id": 1,
+    "farmer_id": 1,
+    "quantity_assigned": 20.0,
+    "unit_price": 1000.0,
+    "total_price": 20000.0,
+    "status": "assigned",
+    "assigned_date": "2025-06-07T18:06:05.051062",
+    "notes": "Asignación automática al crear solicitud"
+  },
+  {
+    "id": 4,
+    "request_id": 3,
+    "product_id": 2,
+    "farmer_id": 1,
+    "quantity_assigned": 12.0,
+    "unit_price": 2000.0,
+    "total_price": 24000.0,
+    "status": "assigned",
+    "assigned_date": "2025-06-07T18:06:05.051062",
+    "notes": "Asignación automática al crear solicitud"
+  }
+]
