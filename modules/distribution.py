@@ -105,7 +105,7 @@ class DistributionModule:
         
         ttk.Button(actions_frame, text="📋 Ver Detalles", 
                   style='Info.TButton',
-                  command=lambda: self.view_request_details()).pack(side='left', padx=(0, 10))
+                  command=lambda: self.view_request_details(None)).pack(side='left', padx=(0, 10))
         
         ttk.Button(actions_frame, text="📊 Ver Total a Pagar", 
                   style='Primary.TButton',
@@ -116,7 +116,7 @@ class DistributionModule:
         requests_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
         
         # Requests treeview
-        columns = ('ID', 'Punto de Venta', 'Productos', 'Cantidades', 'Fecha Requerida', 'Prioridad', 'Estado')
+        columns = ('ID', 'Punto de Venta', 'Productos', 'Cantidades', 'Total a Pagar', 'Fecha Requerida', 'Prioridad', 'Estado')
         self.requests_tree = ttk.Treeview(requests_frame, columns=columns, show='headings', 
                                         style='Custom.Treeview', height=15)
         
@@ -731,6 +731,94 @@ class DistributionModule:
         except Exception as e:
             messagebox.showerror("Error", f"Error mostrando total: {str(e)}")
     
+    def show_edit_request_form(self, request):
+        """Show form to edit distribution request"""
+        edit_window = tk.Toplevel(self.frame)
+        edit_window.title(f"Editar Solicitud #{request['id']}")
+        edit_window.geometry("400x300")
+        edit_window.transient(self.frame)
+        edit_window.grab_set()
+        
+        # Form frame
+        form_frame = ttk.Frame(edit_window, padding=20)
+        form_frame.pack(fill='both', expand=True)
+        
+        ttk.Label(form_frame, text=f"Editando Solicitud #{request['id']}", 
+                 style='Heading.TLabel').pack(pady=(0, 20))
+        
+        # Priority
+        ttk.Label(form_frame, text="Prioridad:").pack(anchor='w', pady=(0, 5))
+        edit_priority_var = tk.StringVar(value=request.get('priority', 'medium'))
+        priority_combo = ttk.Combobox(form_frame, textvariable=edit_priority_var, 
+                                    style='Custom.TCombobox', state='readonly')
+        priority_combo['values'] = ['low', 'medium', 'high']
+        priority_combo.pack(fill='x', pady=(0, 10))
+        
+        # Required date
+        ttk.Label(form_frame, text="Fecha Requerida:").pack(anchor='w', pady=(0, 5))
+        edit_date_var = tk.StringVar(value=request.get('required_date', ''))
+        date_frame = ttk.Frame(form_frame)
+        date_frame.pack(fill='x', pady=(0, 10))
+        
+        ttk.Entry(date_frame, textvariable=edit_date_var, 
+                 style='Custom.TEntry', width=15).pack(side='left')
+        ttk.Label(date_frame, text="(YYYY-MM-DD)").pack(side='left', padx=(5, 0))
+        
+        # Notes
+        ttk.Label(form_frame, text="Notas:").pack(anchor='w', pady=(0, 5))
+        notes_text = tk.Text(form_frame, height=4, font=('Segoe UI', 10), wrap=tk.WORD)
+        notes_text.pack(fill='x', pady=(0, 15))
+        
+        # Load existing notes
+        if request.get('notes'):
+            notes_text.insert(1.0, request['notes'])
+        
+        # Buttons
+        buttons_frame = ttk.Frame(form_frame)
+        buttons_frame.pack(fill='x')
+        
+        def save_changes():
+            try:
+                # Validate date
+                required_date = edit_date_var.get().strip()
+                if required_date and not self.validate_date_format(required_date):
+                    messagebox.showerror("Error", "Formato de fecha inválido")
+                    return
+                
+                # Prepare update data
+                update_data = {
+                    'priority': edit_priority_var.get(),
+                    'required_date': required_date if required_date else None,
+                    'notes': notes_text.get(1.0, tk.END).strip() or None
+                }
+                
+                # Update request
+                self.db.update_distribution_request(request['id'], update_data)
+                messagebox.showinfo("Éxito", "Solicitud actualizada correctamente")
+                
+                edit_window.destroy()
+                self.refresh_requests()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error actualizando solicitud: {str(e)}")
+        
+        ttk.Button(buttons_frame, text="💾 Guardar Cambios", 
+                  style='Primary.TButton',
+                  command=save_changes).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(buttons_frame, text="❌ Cancelar", 
+                  style='Secondary.TButton',
+                  command=edit_window.destroy).pack(side='left')
+    
+    def validate_date_format(self, date_string):
+        """Validate date format YYYY-MM-DD"""
+        try:
+            from datetime import datetime
+            datetime.strptime(date_string, '%Y-%m-%d')
+            return True
+        except ValueError:
+            return False
+    
     def refresh_requests(self):
         """Refresh distribution requests list"""
         try:
@@ -765,15 +853,23 @@ class DistributionModule:
                     quantities_text = ", ".join([f"{p['quantity_requested']:.1f} {p['unit']}" for p in product_details[:2]])
                     if len(product_details) > 2:
                         quantities_text += "..."
+                    
+                    # Calculate total price
+                    total_price = request.get('total_price', 0)
+                    if total_price == 0:  # Calculate if not stored
+                        total_price = sum([p.get('quantity_requested', 0) * p.get('price_per_unit', 0) for p in product_details])
+                    price_text = f"${total_price:.2f}"
                 else:
                     products_text = "Sin productos"
                     quantities_text = "0"
+                    price_text = "$0.00"
                 
                 self.requests_tree.insert('', 'end', values=(
                     request['id'],
                     request['sales_point_name'],
                     products_text,
                     quantities_text,
+                    price_text,
                     request['required_date'] or 'N/A',
                     priority_display,
                     status_display
