@@ -251,14 +251,22 @@ class DistributionModule:
             else:
                 self.assignments_tree.column(col, width=100, minwidth=80)
         
+        # Create frame for tree and scrollbars
+        tree_frame = ttk.Frame(assignments_frame)
+        tree_frame.pack(fill='both', expand=True)
+        
         # Assignments scrollbars
-        assign_scrollbar_y = ttk.Scrollbar(assignments_frame, orient='vertical', command=self.assignments_tree.yview)
-        assign_scrollbar_x = ttk.Scrollbar(assignments_frame, orient='horizontal', command=self.assignments_tree.xview)
+        assign_scrollbar_y = ttk.Scrollbar(tree_frame, orient='vertical', command=self.assignments_tree.yview)
+        assign_scrollbar_x = ttk.Scrollbar(tree_frame, orient='horizontal', command=self.assignments_tree.xview)
         self.assignments_tree.configure(yscrollcommand=assign_scrollbar_y.set, xscrollcommand=assign_scrollbar_x.set)
         
-        self.assignments_tree.pack(side='left', fill='both', expand=True)
-        assign_scrollbar_y.pack(side='right', fill='y')
-        assign_scrollbar_x.pack(side='bottom', fill='x')
+        # Grid layout for proper scrollbar positioning
+        self.assignments_tree.grid(row=0, column=0, sticky='nsew')
+        assign_scrollbar_y.grid(row=0, column=1, sticky='ns')
+        assign_scrollbar_x.grid(row=1, column=0, sticky='ew')
+        
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
         
         # Assignment actions
         actions_frame = ttk.Frame(parent)
@@ -268,9 +276,24 @@ class DistributionModule:
                   style='Primary.TButton',
                   command=self.mark_as_delivered).pack(side='left', padx=(0, 10))
         
+        ttk.Button(actions_frame, text="📋 Ver Detalles", 
+                  style='Secondary.TButton',
+                  command=self.view_assignment_details).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(actions_frame, text="✅ Completar Solicitud", 
+                  style='Success.TButton',
+                  command=self.complete_request).pack(side='left', padx=(0, 10))
+        
+        ttk.Button(actions_frame, text="🚛 Programar Entrega", 
+                  style='Info.TButton',
+                  command=self.schedule_delivery_from_assignment).pack(side='left', padx=(0, 10))
+        
         ttk.Button(actions_frame, text="❌ Cancelar Asignación", 
                   style='Danger.TButton',
                   command=self.cancel_assignment).pack(side='left')
+        
+        # Bind double-click event
+        self.assignments_tree.bind('<Double-1>', self.view_assignment_details)
         
         # Load assignments
         self.refresh_assignments()
@@ -877,10 +900,204 @@ class DistributionModule:
                       style='Secondary.TButton',
                       command=details_window.destroy).pack(pady=(20, 0))
     
+    def complete_request(self):
+        """Complete a distribution request"""
+        selection = self.assignments_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una asignación")
+            return
+        
+        assignment_id = self.assignments_tree.item(selection[0])['values'][0]
+        
+        try:
+            # Get assignment details
+            assignments = self.db.get_distribution_assignments()
+            assignment = next((a for a in assignments if a['id'] == assignment_id), None)
+            
+            if not assignment:
+                messagebox.showerror("Error", "Asignación no encontrada")
+                return
+            
+            request_id = assignment['request_id']
+            
+            # Update request status to completed
+            self.db.update_request_status(request_id, 'completed')
+            # Update assignment status to delivered
+            self.db.update_assignment_status(assignment_id, 'delivered', 'Solicitud completada manualmente')
+            
+            messagebox.showinfo("Éxito", "Solicitud marcada como completada")
+            self.refresh_assignments()
+            self.refresh_requests()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error completando solicitud: {str(e)}")
+    
+    def view_assignment_details(self, event=None):
+        """View assignment details"""
+        selection = self.assignments_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una asignación")
+            return
+        
+        assignment_id = self.assignments_tree.item(selection[0])['values'][0]
+        
+        try:
+            assignments = self.db.get_distribution_assignments()
+            assignment = next((a for a in assignments if a['id'] == assignment_id), None)
+            
+            if not assignment:
+                messagebox.showerror("Error", "Asignación no encontrada")
+                return
+            
+            # Create details window
+            details_window = tk.Toplevel(self.parent)
+            details_window.title(f"Detalles de Asignación #{assignment_id}")
+            details_window.geometry("600x500")
+            details_window.transient(self.parent)
+            
+            details_frame = ttk.Frame(details_window, padding=20)
+            details_frame.pack(fill='both', expand=True)
+            
+            ttk.Label(details_frame, text=f"Asignación #{assignment_id}", 
+                     style='Heading.TLabel').pack(pady=(0, 20))
+            
+            # Create details text
+            details_text = tk.Text(details_frame, font=('Segoe UI', 10), wrap=tk.WORD, height=20)
+            details_text.pack(fill='both', expand=True, pady=(0, 20))
+            
+            # Format assignment details
+            details_content = f"""INFORMACIÓN DE LA ASIGNACIÓN
+
+Solicitud ID: {assignment.get('request_id', 'N/A')}
+Producto: {assignment.get('product_name', 'N/A')}
+Categoría: {assignment.get('product_category', 'N/A')}
+Agricultor: {assignment.get('farmer_name', 'N/A')}
+Punto de Venta: {assignment.get('sales_point_name', 'N/A')}
+
+CANTIDADES Y PRECIOS
+Cantidad Asignada: {assignment.get('quantity_assigned', 0)} {assignment.get('product_unit', '')}
+Precio Unitario: ${assignment.get('unit_price', 0):.2f}
+Precio Total: ${assignment.get('total_price', 0):.2f}
+
+ESTADO Y FECHAS
+Estado: {assignment.get('status', 'N/A')}
+Fecha de Asignación: {assignment.get('assigned_date', 'N/A')}
+Fecha de Actualización: {assignment.get('updated_date', 'N/A')}
+
+NOTAS
+{assignment.get('notes', 'Sin notas adicionales')}
+"""
+            
+            details_text.insert('1.0', details_content)
+            details_text.configure(state='disabled')
+            
+            ttk.Button(details_frame, text="Cerrar", 
+                      command=details_window.destroy).pack()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error cargando detalles: {str(e)}")
+    
+    def schedule_delivery_from_assignment(self):
+        """Schedule delivery from selected assignment"""
+        selection = self.assignments_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una asignación")
+            return
+        
+        assignment_id = self.assignments_tree.item(selection[0])['values'][0]
+        
+        # Create delivery scheduling window
+        delivery_window = tk.Toplevel(self.parent)
+        delivery_window.title("Programar Entrega")
+        delivery_window.geometry("500x400")
+        delivery_window.transient(self.parent)
+        delivery_window.grab_set()
+        
+        form_frame = ttk.LabelFrame(delivery_window, text="Datos de la Entrega", padding=20)
+        form_frame.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        # Driver name
+        ttk.Label(form_frame, text="Conductor:").grid(row=0, column=0, sticky='w', padx=5, pady=5)
+        driver_name_var = tk.StringVar()
+        ttk.Entry(form_frame, textvariable=driver_name_var, width=30).grid(row=0, column=1, padx=5, pady=5)
+        
+        # Vehicle info
+        ttk.Label(form_frame, text="Vehículo:").grid(row=1, column=0, sticky='w', padx=5, pady=5)
+        vehicle_info_var = tk.StringVar()
+        ttk.Entry(form_frame, textvariable=vehicle_info_var, width=30).grid(row=1, column=1, padx=5, pady=5)
+        
+        # Scheduled date
+        ttk.Label(form_frame, text="Fecha Programada:").grid(row=2, column=0, sticky='w', padx=5, pady=5)
+        scheduled_date_var = tk.StringVar(value=datetime.now().strftime('%Y-%m-%d'))
+        ttk.Entry(form_frame, textvariable=scheduled_date_var, width=30).grid(row=2, column=1, padx=5, pady=5)
+        
+        # Delivery address
+        ttk.Label(form_frame, text="Dirección:").grid(row=3, column=0, sticky='w', padx=5, pady=5)
+        address_text = tk.Text(form_frame, width=30, height=3)
+        address_text.grid(row=3, column=1, padx=5, pady=5)
+        
+        # Notes
+        ttk.Label(form_frame, text="Notas:").grid(row=4, column=0, sticky='w', padx=5, pady=5)
+        notes_text = tk.Text(form_frame, width=30, height=3)
+        notes_text.grid(row=4, column=1, padx=5, pady=5)
+        
+        # Buttons
+        buttons_frame = ttk.Frame(delivery_window)
+        buttons_frame.pack(fill='x', padx=20, pady=10)
+        
+        def save_delivery():
+            try:
+                delivery_data = {
+                    'assignment_id': assignment_id,
+                    'driver_name': driver_name_var.get(),
+                    'vehicle_info': vehicle_info_var.get(),
+                    'scheduled_date': scheduled_date_var.get(),
+                    'delivery_address': address_text.get('1.0', 'end-1c'),
+                    'notes': notes_text.get('1.0', 'end-1c')
+                }
+                
+                self.db.add_delivery(delivery_data)
+                messagebox.showinfo("Éxito", "Entrega programada exitosamente")
+                delivery_window.destroy()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error programando entrega: {str(e)}")
+        
+        ttk.Button(buttons_frame, text="Guardar", command=save_delivery).pack(side='right', padx=5)
+        ttk.Button(buttons_frame, text="Cancelar", command=delivery_window.destroy).pack(side='right', padx=5)
+    
     def mark_as_delivered(self):
         """Mark assignment as delivered"""
-        messagebox.showinfo("Información", "Funcionalidad en desarrollo")
+        selection = self.assignments_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una asignación")
+            return
+        
+        assignment_id = self.assignments_tree.item(selection[0])['values'][0]
+        
+        try:
+            self.db.update_assignment_status(assignment_id, 'delivered', 'Marcado como entregado manualmente')
+            messagebox.showinfo("Éxito", "Asignación marcada como entregada")
+            self.refresh_assignments()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error actualizando estado: {str(e)}")
     
     def cancel_assignment(self):
         """Cancel an assignment"""
-        messagebox.showinfo("Información", "Funcionalidad en desarrollo")
+        selection = self.assignments_tree.selection()
+        if not selection:
+            messagebox.showwarning("Advertencia", "Seleccione una asignación")
+            return
+        
+        assignment_id = self.assignments_tree.item(selection[0])['values'][0]
+        
+        # Confirm cancellation
+        if messagebox.askyesno("Confirmar", "¿Está seguro de cancelar esta asignación?"):
+            try:
+                self.db.update_assignment_status(assignment_id, 'cancelled', 'Cancelada por el usuario')
+                messagebox.showinfo("Éxito", "Asignación cancelada")
+                self.refresh_assignments()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error cancelando asignación: {str(e)}")
