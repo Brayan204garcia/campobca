@@ -8,8 +8,11 @@ class DeliveriesModule:
         self.parent = parent
         self.db = db_manager
         self.frame = None
+        
+        # Initialize tree references
         self.deliveries_tree = None
-        self.assignments_tree = None
+        self.assignments_tree = None  
+        self.requests_tree = None
         self.delivery_form_window = None
         
     def show(self):
