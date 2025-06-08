@@ -11,21 +11,29 @@ class DistributionModule:
         self.current_request_id = None
         self.selected_products = []
         
+        # Initialize tree widget references
+        self.requests_tree = None
+        self.available_products_tree = None
+        self.pending_requests_tree = None
+        self.request_products_tree = None
+        
+        # Initialize filter variables
+        self.status_filter_var = None
+        self.priority_filter_var = None
+        
     def show(self):
         """Show the distribution module"""
         if self.frame:
-            self.frame.destroy()
-        
-        self.frame = ttk.Frame(self.parent, style='Card.TFrame')
-        self.frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        self.create_distribution_interface()
+            self.frame.pack(fill='both', expand=True)
+        else:
+            self.frame = ttk.Frame(self.parent, style='Card.TFrame')
+            self.frame.pack(fill='both', expand=True, padx=10, pady=10)
+            self.create_distribution_interface()
         
     def hide(self):
         """Hide the distribution module"""
         if self.frame:
-            self.frame.destroy()
-            self.frame = None
+            self.frame.pack_forget()
     
     def create_distribution_interface(self):
         """Create the distribution coordination interface"""
