@@ -417,15 +417,52 @@ class ReportsModule:
             for widget in self.activity_summary_frame.winfo_children():
                 widget.destroy()
             
-            # Get activity data (simulated for now)
-            # In a real implementation, this would come from distribution_assignments table
+            # Get distribution requests and deliveries data
+            requests = self.db.get_distribution_requests()
+            deliveries = self.db.get_deliveries()
+            
+            # Filter by date range if specified
+            start_date = self.start_date_var.get() if hasattr(self, 'start_date_var') else None
+            end_date = self.end_date_var.get() if hasattr(self, 'end_date_var') else None
+            
+            # Count requests by status
+            active_requests = len([r for r in requests if r['status'] in ['Pendiente', 'Confirmado']])
+            completed_requests = len([r for r in requests if r['status'] == 'Entregado'])
+            in_transit = len([d for d in deliveries if d['status'] == 'En Tránsito'])
+            
+            # Calculate total value of completed sales (delivered orders)
+            total_sales_value = 0
+            completed_sales = []
+            
+            for delivery in deliveries:
+                if delivery['status'] == 'Entregado':
+                    # Find the corresponding request
+                    request = next((r for r in requests if r['id'] == delivery['request_id']), None)
+                    if request:
+                        # Calculate value from products in the request
+                        request_value = 0
+                        for product_item in request.get('products', []):
+                            # Get product details to calculate value
+                            products = self.db.get_products()
+                            product = next((p for p in products if p['id'] == product_item.get('product_id')), None)
+                            if product:
+                                item_value = product_item.get('quantity', 0) * product.get('price_per_unit', 0)
+                                request_value += item_value
+                        
+                        total_sales_value += request_value
+                        completed_sales.append({
+                            'date': delivery.get('delivery_date', ''),
+                            'request': request,
+                            'delivery': delivery,
+                            'value': request_value
+                        })
             
             # Create summary stats
             summary_data = [
-                ("📋", "Solicitudes Activas", 0),
-                ("✅", "Completadas", 0),
-                ("🚚", "En Tránsito", 0),
-                ("💸", "Valor Movido", "$0.00")
+                ("📋", "Solicitudes Activas", active_requests),
+                ("✅", "Ventas Completadas", completed_requests),
+                ("🚚", "En Tránsito", in_transit),
+                ("💸", "Valor Total Vendido", f"${total_sales_value:.2f}")
             ]
             
             for i, (icon, label, value) in enumerate(summary_data):
@@ -439,16 +476,37 @@ class ReportsModule:
                 ttk.Label(icon_frame, text=str(value), style='StatValue.TLabel').pack()
                 ttk.Label(icon_frame, text=label, style='StatLabel.TLabel').pack()
             
-            # Add sample transaction (in real implementation, this would come from database)
-            self.transactions_tree.insert('', 'end', values=(
-                datetime.now().strftime('%Y-%m-%d'),
-                'Producto Agregado',
-                'Ejemplo',
-                'Sin datos',
-                'Sin datos',
-                'N/A',
-                'N/A'
-            ))
+            # Populate transactions tree with completed sales
+            for sale in sorted(completed_sales, key=lambda x: x['date'], reverse=True)[:20]:  # Last 20 sales
+                request = sale['request']
+                delivery = sale['delivery']
+                
+                # Get main product name (first product in request)
+                main_product = "Sin productos"
+                if request.get('products'):
+                    products = self.db.get_products()
+                    first_product_id = request['products'][0].get('product_id')
+                    product = next((p for p in products if p['id'] == first_product_id), None)
+                    if product:
+                        main_product = product['name']
+                        if len(request['products']) > 1:
+                            main_product += f" (+{len(request['products'])-1} más)"
+                
+                self.transactions_tree.insert('', 'end', values=(
+                    sale['date'],
+                    'Venta Completada',
+                    main_product,
+                    request.get('farmer_name', 'N/A'),
+                    request.get('sales_point_name', 'N/A'),
+                    f"{sum(item.get('quantity', 0) for item in request.get('products', []))} unidades",
+                    f"${sale['value']:.2f}"
+                ))
+            
+            # If no sales data available
+            if not completed_sales:
+                self.transactions_tree.insert('', 'end', values=(
+                    '', 'Sin ventas', 'No hay ventas completadas en el período seleccionado', '', '', '', ''
+                ))
                 
         except Exception as e:
             messagebox.showerror("Error", f"Error cargando reporte de actividad: {str(e)}")
@@ -596,37 +654,54 @@ class ReportsModule:
             for widget in self.financial_metrics_frame.winfo_children():
                 widget.destroy()
             
-            # Get financial data
+            # Get financial data from actual sales (delivered orders)
             products = self.db.get_products(available_only=True)
+            requests = self.db.get_distribution_requests()
+            deliveries = self.db.get_deliveries()
             
-            # Calculate category-wise data
-            category_data = {}
-            for product in products:
-                category = product['category']
-                if category not in category_data:
-                    category_data[category] = {
-                        'count': 0,
-                        'total_quantity': 0,
-                        'total_value': 0,
-                        'prices': []
-                    }
-                
-                category_data[category]['count'] += 1
-                category_data[category]['total_quantity'] += product['quantity']
-                category_data[category]['total_value'] += product['quantity'] * product['price_per_unit']
-                category_data[category]['prices'].append(product['price_per_unit'])
+            # Calculate sales revenue from delivered orders
+            total_sales_revenue = 0
+            category_sales = {}
             
-            # Calculate overall metrics
-            total_inventory_value = sum(data['total_value'] for data in category_data.values())
-            total_products = sum(data['count'] for data in category_data.values())
+            for delivery in deliveries:
+                if delivery['status'] == 'Entregado':
+                    # Find the corresponding request
+                    request = next((r for r in requests if r['id'] == delivery['request_id']), None)
+                    if request:
+                        for product_item in request.get('products', []):
+                            # Get product details
+                            product = next((p for p in products if p['id'] == product_item.get('product_id')), None)
+                            if product:
+                                item_value = product_item.get('quantity', 0) * product.get('price_per_unit', 0)
+                                sold_quantity = product_item.get('quantity', 0)
+                                total_sales_revenue += item_value
+                                
+                                # Track by category
+                                category = product['category']
+                                if category not in category_sales:
+                                    category_sales[category] = {
+                                        'products_sold': 0,
+                                        'quantity_sold': 0,
+                                        'revenue': 0,
+                                        'prices': []
+                                    }
+                                
+                                category_sales[category]['products_sold'] += 1
+                                category_sales[category]['quantity_sold'] += sold_quantity
+                                category_sales[category]['revenue'] += item_value
+                                category_sales[category]['prices'].append(product['price_per_unit'])
+            
+            # Calculate inventory value
+            total_inventory_value = sum(p['quantity'] * p['price_per_unit'] for p in products)
+            total_products = len(products)
             avg_price = sum(p['price_per_unit'] for p in products) / len(products) if products else 0
             
             # Create financial metrics cards
             financial_data = [
-                ("💰", "Valor Inventario", f"${total_inventory_value:.2f}"),
-                ("📦", "Total Productos", total_products),
+                ("💰", "Ingresos por Ventas", f"${total_sales_revenue:.2f}"),
+                ("📦", "Valor Inventario", f"${total_inventory_value:.2f}"),
                 ("📊", "Precio Promedio", f"${avg_price:.2f}"),
-                ("📂", "Categorías Activas", len(category_data))
+                ("📂", "Categorías Vendidas", len(category_sales))
             ]
             
             for i, (icon, label, value) in enumerate(financial_data):
@@ -640,15 +715,15 @@ class ReportsModule:
                 ttk.Label(icon_frame, text=str(value), style='StatValue.TLabel').pack()
                 ttk.Label(icon_frame, text=label, style='StatLabel.TLabel').pack()
             
-            # Populate category tree
-            for category, data in sorted(category_data.items(), key=lambda x: x[1]['total_value'], reverse=True):
+            # Populate category tree with sales data
+            for category, data in sorted(category_sales.items(), key=lambda x: x[1]['revenue'], reverse=True):
                 avg_category_price = sum(data['prices']) / len(data['prices']) if data['prices'] else 0
                 
                 self.category_tree.insert('', 'end', values=(
                     category,
-                    data['count'],
-                    f"{data['total_quantity']:.2f}",
-                    f"${data['total_value']:.2f}",
+                    data['products_sold'],
+                    f"{data['quantity_sold']:.2f}",
+                    f"${data['revenue']:.2f}",
                     f"${avg_category_price:.2f}"
                 ))
             
