@@ -736,9 +736,16 @@ class DistributionModule:
             # Create details window
             details_window = tk.Toplevel(self.parent)
             details_window.title(f"Detalles de Solicitud #{request_id}")
-            details_window.geometry("600x500")
             details_window.transient(self.parent)
             details_window.grab_set()
+            
+            # Auto-size and center the window
+            details_window.update_idletasks()
+            width = min(700, details_window.winfo_screenwidth() - 100)
+            height = min(600, details_window.winfo_screenheight() - 100)
+            x = (details_window.winfo_screenwidth() // 2) - (width // 2)
+            y = (details_window.winfo_screenheight() // 2) - (height // 2)
+            details_window.geometry(f"{width}x{height}+{x}+{y}")
             
             # Main frame
             main_frame = ttk.Frame(details_window, padding=20)

@@ -301,9 +301,16 @@ class DeliveriesModule:
             # Show delivery scheduling form
             delivery_window = tk.Toplevel(self.parent)
             delivery_window.title(f"Programar Entrega - Solicitud #{request_id}")
-            delivery_window.geometry("600x700")
             delivery_window.transient(self.parent)
             delivery_window.grab_set()
+            
+            # Auto-size and center the window
+            delivery_window.update_idletasks()
+            width = min(700, delivery_window.winfo_screenwidth() - 100)
+            height = min(750, delivery_window.winfo_screenheight() - 100)
+            x = (delivery_window.winfo_screenwidth() // 2) - (width // 2)
+            y = (delivery_window.winfo_screenheight() // 2) - (height // 2)
+            delivery_window.geometry(f"{width}x{height}+{x}+{y}")
             
             # Main frame
             main_frame = ttk.Frame(delivery_window, padding=20)
@@ -416,7 +423,13 @@ class DeliveriesModule:
         # Show status update dialog
         status_window = tk.Toplevel(self.parent)
         status_window.title("Actualizar Estado de Entrega")
-        status_window.geometry("400x300")
+        # Auto-size and center the window
+        status_window.update_idletasks()
+        width = min(500, status_window.winfo_screenwidth() - 100)
+        height = min(400, status_window.winfo_screenheight() - 100)
+        x = (status_window.winfo_screenwidth() // 2) - (width // 2)
+        y = (status_window.winfo_screenheight() // 2) - (height // 2)
+        status_window.geometry(f"{width}x{height}+{x}+{y}")
         status_window.transient(self.parent)
         status_window.grab_set()
         
