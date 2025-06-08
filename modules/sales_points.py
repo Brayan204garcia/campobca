@@ -8,22 +8,23 @@ class SalesPointsModule:
         self.db = db_manager
         self.frame = None
         self.current_sales_point_id = None
+        self.sales_points_tree = None
+        self.search_var = None
+        self.type_filter_var = None
         
     def show(self):
         """Show the sales points module"""
         if self.frame:
-            self.frame.destroy()
-        
-        self.frame = ttk.Frame(self.parent, style='Card.TFrame')
-        self.frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        self.create_sales_points_interface()
+            self.frame.pack(fill='both', expand=True)
+        else:
+            self.frame = ttk.Frame(self.parent, style='Card.TFrame')
+            self.frame.pack(fill='both', expand=True, padx=10, pady=10)
+            self.create_sales_points_interface()
         
     def hide(self):
         """Hide the sales points module"""
         if self.frame:
-            self.frame.destroy()
-            self.frame = None
+            self.frame.pack_forget()
     
     def create_sales_points_interface(self):
         """Create the sales points management interface"""
@@ -449,8 +450,20 @@ class SalesPointsModule:
     
     def filter_sales_points(self, *args):
         """Filter sales points based on search and type"""
-        search_term = self.search_var.get().lower()
-        type_filter = self.type_filter_var.get()
+        # Check if tree and variables exist
+        if not hasattr(self, 'sales_points_tree') or self.sales_points_tree is None:
+            return
+        if not hasattr(self, 'search_var') or self.search_var is None:
+            return
+        if not hasattr(self, 'type_filter_var') or self.type_filter_var is None:
+            return
+            
+        try:
+            search_term = self.search_var.get().lower()
+            type_filter = self.type_filter_var.get()
+        except tk.TclError:
+            # Variables destroyed, skip filtering
+            return
         
         # Clear current items
         for item in self.sales_points_tree.get_children():

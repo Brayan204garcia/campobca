@@ -232,6 +232,10 @@ class DeliveriesModule:
     def refresh_deliveries(self):
         """Refresh deliveries list"""
         try:
+            # Check if tree exists
+            if not hasattr(self, 'deliveries_tree') or self.deliveries_tree is None:
+                return
+                
             # Clear existing data
             for item in self.deliveries_tree.get_children():
                 self.deliveries_tree.delete(item)
@@ -274,6 +278,10 @@ class DeliveriesModule:
     def refresh_assignments(self):
         """Refresh assignments list"""
         try:
+            # Check if tree exists
+            if not hasattr(self, 'assignments_tree') or self.assignments_tree is None:
+                return
+                
             # Clear existing data
             for item in self.assignments_tree.get_children():
                 self.assignments_tree.delete(item)
@@ -641,7 +649,7 @@ class DeliveriesModule:
         ttk.Label(status_window, text="Nuevo Estado:").pack(pady=10)
         status_var = tk.StringVar()
         status_combo = ttk.Combobox(status_window, textvariable=status_var, width=20)
-        status_combo['values'] = ("scheduled", "in_transit", "delivered", "cancelled")
+        status_combo['values'] = ("programado", "en_camino", "entregado", "cancelado")
         status_combo.pack(pady=5)
         
         # Notes
