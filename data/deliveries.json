@@ -1,25 +1,14 @@
 [
   {
     "id": 1,
-    "assignment_id": 2,
-    "driver_name": "Carro",
-    "vehicle_info": "asdsadasd",
+    "request_id": 1,
+    "driver_id": 1,
     "scheduled_date": "2025-06-07",
-    "delivery_address": "asdsadas",
-    "status": "cancelled",
-    "created_date": "2025-06-07T17:57:29.149660",
-    "notes": "",
-    "updated_date": "2025-06-07T17:57:51.777816"
-  },
-  {
-    "id": 2,
-    "assignment_id": 3,
-    "driver_name": "Brayan",
-    "vehicle_info": "carro",
-    "scheduled_date": "2025-06-07",
-    "delivery_address": "barrancabermeja",
-    "status": "scheduled",
-    "created_date": "2025-06-07T18:06:42.553504",
-    "notes": "dasdasdasd"
+    "delivery_address": "BARRANCABERMEJAS",
+    "estimated_time": null,
+    "special_instructions": null,
+    "status": "delivered",
+    "created_date": "2025-06-07T19:14:31.292513",
+    "status_updated_date": "2025-06-07T19:15:14.945482"
   }
 ]

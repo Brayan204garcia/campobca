@@ -151,7 +151,6 @@ class DistributionModule:
         modal = tk.Toplevel(self.parent)
         modal.title("Nueva Solicitud de Distribución")
         modal.geometry("800x700")
-        modal.resizable(False, False)
         modal.transient(self.parent)
         modal.grab_set()
         

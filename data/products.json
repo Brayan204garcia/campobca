@@ -4,7 +4,7 @@
     "farmer_id": 1,
     "name": "Tomate",
     "category": "Verduras",
-    "quantity": 480.0,
+    "quantity": 338.0,
     "unit": "kg",
     "price_per_unit": 1000.0,
     "harvest_date": null,
@@ -19,14 +19,14 @@
     "farmer_id": 1,
     "name": "Manzana",
     "category": "Frutas",
-    "quantity": 8.0,
+    "quantity": 0.0,
     "unit": "unidades",
     "price_per_unit": 2000.0,
     "harvest_date": null,
     "expiry_date": null,
     "quality_grade": "Regular",
     "description": null,
-    "available": true,
+    "available": false,
     "created_date": "2025-06-07T14:06:52.512875"
   }
 ]
