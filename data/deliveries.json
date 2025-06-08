@@ -9,7 +9,21 @@
     "special_instructions": null,
     "status": "entregado",
     "created_date": "2025-06-07T20:02:31.041535",
-    "status_updated_date": "2025-06-07T20:03:06.673413",
-    "delivered_date": "2025-06-07T20:03:06.673413"
+    "status_updated_date": "2025-06-07T21:13:49.103720",
+    "delivered_date": "2025-06-07T21:13:49.103720"
+  },
+  {
+    "id": 2,
+    "request_id": 2,
+    "driver_id": 1,
+    "scheduled_date": "2025-06-07",
+    "delivery_address": "Calle 48 #21-05, Barrio La Campiña, Barrancabermeja",
+    "estimated_time": "8AM",
+    "special_instructions": "SE ENVIA EL PRODUCTO EN BUEN ESTADO",
+    "status": "entregado",
+    "created_date": "2025-06-07T21:20:28.147477",
+    "status_updated_date": "2025-06-07T21:21:23.010286",
+    "notes": "Fue entregado al señor no se",
+    "delivered_date": "2025-06-07T21:21:23.010286"
   }
 ]

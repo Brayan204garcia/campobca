@@ -7,5 +7,95 @@
     "address": "sdfdsfsfd",
     "registration_date": "2025-06-07T14:03:14.881908",
     "active": true
+  },
+  {
+    "id": 2,
+    "name": "Laura",
+    "email": "laura.martinez@example.com",
+    "phone": "3114567890",
+    "address": "Calle 123, Bogotá",
+    "registration_date": "2025-06-08T10:15:00.000000",
+    "active": true
+  },
+  {
+    "id": 3,
+    "name": "Carlos",
+    "email": "carlos.ramirez@example.com",
+    "phone": "3206549871",
+    "address": "Cra 45 #67-89, Medellín",
+    "registration_date": "2025-06-08T09:00:00.000000",
+    "active": true
+  },
+  {
+    "id": 4,
+    "name": "Andrea",
+    "email": "andrea.gomez@example.com",
+    "phone": "3123456789",
+    "address": "Av. Siempre Viva 742",
+    "registration_date": "2025-06-06T08:20:30.000000",
+    "active": false
+  },
+  {
+    "id": 5,
+    "name": "Juan",
+    "email": "juan.perez@example.com",
+    "phone": "3009876543",
+    "address": "Barrio La Floresta",
+    "registration_date": "2025-06-05T14:45:00.000000",
+    "active": true
+  },
+  {
+    "id": 6,
+    "name": "Camila",
+    "email": "camila.lopez@example.com",
+    "phone": "3211234567",
+    "address": "Calle 50, Cali",
+    "registration_date": "2025-06-04T16:10:00.000000",
+    "active": true
+  },
+  {
+    "id": 7,
+    "name": "Mateo",
+    "email": "mateo.fernandez@example.com",
+    "phone": "3199876543",
+    "address": "Cra 100 #10-20, Bucaramanga",
+    "registration_date": "2025-06-03T11:11:11.000000",
+    "active": false
+  },
+  {
+    "id": 8,
+    "name": "Sofía",
+    "email": "sofia.ruiz@example.com",
+    "phone": "3134567890",
+    "address": "Villa del Sol",
+    "registration_date": "2025-06-02T17:30:00.000000",
+    "active": true
+  },
+  {
+    "id": 9,
+    "name": "Daniel",
+    "email": "daniel.mendoza@example.com",
+    "phone": "3102345678",
+    "address": "Centro histórico, Cartagena",
+    "registration_date": "2025-06-01T08:00:00.000000",
+    "active": true
+  },
+  {
+    "id": 10,
+    "name": "Isabella",
+    "email": "isabella.santos@example.com",
+    "phone": "3153456789",
+    "address": "Poblado, Medellín",
+    "registration_date": "2025-05-31T19:25:00.000000",
+    "active": false
+  },
+  {
+    "id": 11,
+    "name": "Sebastián",
+    "email": "sebastian.vera@example.com",
+    "phone": "3181234567",
+    "address": "Calle 8, Manizales",
+    "registration_date": "2025-05-30T13:14:15.000000",
+    "active": true
   }
 ]

@@ -179,7 +179,7 @@ class DistributionModule:
         
         # Auto-size and center the modal
         modal.update_idletasks()
-        width = min(900, modal.winfo_screenwidth() - 100)
+        width = min(1100, modal.winfo_screenwidth() - 100)
         height = min(800, modal.winfo_screenheight() - 100)
         x = (modal.winfo_screenwidth() // 2) - (width // 2)
         y = (modal.winfo_screenheight() // 2) - (height // 2)

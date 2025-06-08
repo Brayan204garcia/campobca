@@ -15,7 +15,7 @@ from modules.reports import ReportsModule
 class AgriculturalCooperativeApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Sistema de Coordinación Agrícola")
+        self.root.title("Campobca")
         self.root.geometry("1200x800")
         self.root.minsize(1000, 600)
         
@@ -66,7 +66,7 @@ class AgriculturalCooperativeApp:
         
         title_label = ttk.Label(
             header_frame,
-            text="🌾 Sistema de Coordinación Agrícola",
+            text="Campobca: Brayan Garcia - Jeisson Cantillo",
             style='Title.TLabel'
         )
         title_label.pack(side='left')
