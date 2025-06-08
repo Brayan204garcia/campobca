@@ -158,18 +158,35 @@ class DistributionModule:
         # Create modal window
         modal = tk.Toplevel(self.parent)
         modal.title("Nueva Solicitud de Distribución")
-        modal.geometry("800x700")
         modal.transient(self.parent)
         modal.grab_set()
         
-        # Center the modal
+        # Configure scrollable main frame
+        canvas = tk.Canvas(modal)
+        scrollbar = ttk.Scrollbar(modal, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Auto-size and center the modal
         modal.update_idletasks()
-        x = (modal.winfo_screenwidth() // 2) - (modal.winfo_width() // 2)
-        y = (modal.winfo_screenheight() // 2) - (modal.winfo_height() // 2)
-        modal.geometry(f"+{x}+{y}")
+        width = min(900, modal.winfo_screenwidth() - 100)
+        height = min(800, modal.winfo_screenheight() - 100)
+        x = (modal.winfo_screenwidth() // 2) - (width // 2)
+        y = (modal.winfo_screenheight() // 2) - (height // 2)
+        modal.geometry(f"{width}x{height}+{x}+{y}")
         
         # Main frame
-        main_frame = ttk.Frame(modal, padding=20)
+        main_frame = ttk.Frame(scrollable_frame, padding=20)
         main_frame.pack(fill='both', expand=True)
         
         # Title
@@ -525,6 +542,9 @@ class DistributionModule:
     
     def show_payment_or_invoice(self):
         """Show payment total or invoice based on request status"""
+        if not self.requests_tree:
+            return
+            
         selection = self.requests_tree.selection()
         if not selection:
             messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver el total")
@@ -543,9 +563,16 @@ class DistributionModule:
             # Show payment details window
             payment_window = tk.Toplevel(self.parent)
             payment_window.title(f"Total a Pagar - Solicitud #{request_id}")
-            payment_window.geometry("500x400")
             payment_window.transient(self.parent)
             payment_window.grab_set()
+            
+            # Auto-size and center the window
+            payment_window.update_idletasks()
+            width = min(600, payment_window.winfo_screenwidth() - 100)
+            height = min(500, payment_window.winfo_screenheight() - 100)
+            x = (payment_window.winfo_screenwidth() // 2) - (width // 2)
+            y = (payment_window.winfo_screenheight() // 2) - (height // 2)
+            payment_window.geometry(f"{width}x{height}+{x}+{y}")
             
             # Payment details frame
             details_frame = ttk.Frame(payment_window, padding=20)
@@ -628,7 +655,7 @@ class DistributionModule:
             for item in self.requests_tree.get_children():
                 self.requests_tree.delete(item)
             
-            # Load requests
+            # Load requests with up-to-date status information
             requests = self.db.get_distribution_requests()
             
             for request in requests:

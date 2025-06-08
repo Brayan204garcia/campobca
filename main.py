@@ -129,6 +129,20 @@ class AgriculturalCooperativeApp:
         self.current_module = self.modules[module_name]
         self.current_module.show()
         
+        # Refresh data when switching to distribution module to ensure updated status
+        if module_name == 'distribution' and hasattr(self.current_module, 'refresh_requests'):
+            self.current_module.refresh_requests()
+    
+    def refresh_all_modules(self):
+        """Refresh data in all initialized modules"""
+        for module in self.modules.values():
+            if hasattr(module, 'refresh_requests'):
+                module.refresh_requests()
+            if hasattr(module, 'refresh_data'):
+                module.refresh_data()
+            if hasattr(module, 'refresh_dashboard'):
+                module.refresh_dashboard()
+        
     def run(self):
         """Start the application"""
         try:

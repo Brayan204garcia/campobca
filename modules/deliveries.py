@@ -458,6 +458,17 @@ class DeliveriesModule:
                 status_window.destroy()
                 self.refresh_deliveries()
                 
+                # Refresh distribution module if it exists to show updated request status
+                try:
+                    # Navigate up to find the main app instance
+                    app = self.parent
+                    while app and not hasattr(app, 'refresh_all_modules'):
+                        app = getattr(app, 'master', getattr(app, 'parent', None))
+                    if app and hasattr(app, 'refresh_all_modules'):
+                        app.refresh_all_modules()
+                except:
+                    pass  # Silently continue if refresh fails
+                
             except Exception as e:
                 messagebox.showerror("Error", f"Error actualizando estado: {str(e)}")
         
