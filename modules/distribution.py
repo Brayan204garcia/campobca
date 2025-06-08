@@ -195,16 +195,18 @@ class DistributionModule:
         
         # Form variables
         self.request_sales_point_var = tk.StringVar()
-        self.request_required_date_var = tk.StringVar()
-        self.request_priority_var = tk.StringVar(value='medium')
         
-        # Sales point selection
-        sp_frame = ttk.LabelFrame(main_frame, text="Punto de Venta", padding=10)
-        sp_frame.pack(fill='x', pady=(0, 15))
+        # Top section: Sales point and Products side by side
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill='both', expand=True, pady=(0, 15))
+        
+        # Sales point selection (left side)
+        sp_frame = ttk.LabelFrame(top_frame, text="Punto de Venta", padding=10)
+        sp_frame.pack(side='left', fill='y', padx=(0, 10))
         
         ttk.Label(sp_frame, text="Seleccionar Punto de Venta *:").pack(anchor='w', pady=(0, 5))
         sp_combo = ttk.Combobox(sp_frame, textvariable=self.request_sales_point_var, 
-                               style='Custom.TCombobox', state='readonly')
+                               style='Custom.TCombobox', state='readonly', width=25)
         
         # Load sales points
         try:
@@ -216,19 +218,20 @@ class DistributionModule:
         
         sp_combo.pack(fill='x', ipady=5)
         
-        # Product selection
-        product_frame = ttk.LabelFrame(main_frame, text="Selección de Productos", padding=10)
-        product_frame.pack(fill='both', expand=True, pady=(0, 15))
+        # Available products section (right side with scrollbar)
+        available_frame = ttk.LabelFrame(top_frame, text="Productos Disponibles", padding=10)
+        available_frame.pack(side='right', fill='both', expand=True)
         
-        # Available products section
-        available_frame = ttk.Frame(product_frame)
-        available_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        # Available products tree with scrollbar
+        avail_tree_frame = ttk.Frame(available_frame)
+        avail_tree_frame.pack(fill='both', expand=True)
         
-        ttk.Label(available_frame, text="Productos Disponibles:").pack(anchor='w', pady=(0, 5))
-        
-        # Available products tree
         avail_columns = ('ID', 'Producto', 'Precio', 'Cantidad', 'Agricultor')
-        self.available_tree = ttk.Treeview(available_frame, columns=avail_columns, show='headings', height=8)
+        self.available_tree = ttk.Treeview(avail_tree_frame, columns=avail_columns, show='headings', height=8)
+        
+        # Scrollbar for available products
+        avail_scrollbar = ttk.Scrollbar(avail_tree_frame, orient='vertical', command=self.available_tree.yview)
+        self.available_tree.configure(yscrollcommand=avail_scrollbar.set)
         
         for col in avail_columns:
             self.available_tree.heading(col, text=col)
@@ -239,11 +242,12 @@ class DistributionModule:
             else:
                 self.available_tree.column(col, width=80)
         
-        self.available_tree.pack(fill='both', expand=True)
+        self.available_tree.pack(side='left', fill='both', expand=True)
+        avail_scrollbar.pack(side='right', fill='y')
         
-        # Selected products section
-        selected_frame = ttk.Frame(product_frame)
-        selected_frame.pack(side='right', fill='both', expand=True)
+        # Selected products section (below, full width)
+        selected_frame = ttk.LabelFrame(main_frame, text="Productos Seleccionados", padding=10)
+        selected_frame.pack(fill='x', pady=(0, 15))
         
         ttk.Label(selected_frame, text="Productos Seleccionados:").pack(anchor='w', pady=(0, 5))
         
@@ -255,44 +259,22 @@ class DistributionModule:
             self.selected_products_tree.heading(col, text=col)
             self.selected_products_tree.column(col, width=80)
         
-        self.selected_products_tree.pack(fill='both', expand=True)
+        self.selected_products_tree.pack(fill='x', pady=(0, 10))
         
         # Product action buttons
-        button_frame = ttk.Frame(product_frame)
-        button_frame.pack(fill='x', pady=(10, 0))
+        button_frame = ttk.Frame(selected_frame)
+        button_frame.pack(fill='x', pady=(0, 10))
         
         ttk.Button(button_frame, text="➕ Agregar", 
                   command=self.add_product_to_request).pack(side='left', padx=(0, 5))
         ttk.Button(button_frame, text="➖ Quitar", 
                   command=self.remove_product_from_request).pack(side='left')
         
-        # Additional details
-        details_frame = ttk.LabelFrame(main_frame, text="Detalles Adicionales", padding=10)
-        details_frame.pack(fill='x', pady=(0, 15))
+        # Notes and special instructions
+        notes_frame = ttk.LabelFrame(main_frame, text="Notas e Instrucciones Especiales", padding=10)
+        notes_frame.pack(fill='x', pady=(0, 15))
         
-        # Date and priority in same row
-        date_priority_frame = ttk.Frame(details_frame)
-        date_priority_frame.pack(fill='x', pady=(0, 10))
-        
-        # Required date
-        date_frame = ttk.Frame(date_priority_frame)
-        date_frame.pack(side='left', fill='x', expand=True, padx=(0, 10))
-        ttk.Label(date_frame, text="Fecha Requerida (YYYY-MM-DD):").pack(anchor='w', pady=(0, 5))
-        ttk.Entry(date_frame, textvariable=self.request_required_date_var, 
-                 style='Custom.TEntry').pack(fill='x', ipady=5)
-        
-        # Priority
-        priority_frame = ttk.Frame(date_priority_frame)
-        priority_frame.pack(side='right', fill='x', expand=True)
-        ttk.Label(priority_frame, text="Prioridad:").pack(anchor='w', pady=(0, 5))
-        priority_combo = ttk.Combobox(priority_frame, textvariable=self.request_priority_var, 
-                                    style='Custom.TCombobox', state='readonly')
-        priority_combo['values'] = ['high', 'medium', 'low']
-        priority_combo.pack(fill='x', ipady=5)
-        
-        # Notes
-        ttk.Label(details_frame, text="Notas e Instrucciones Especiales:").pack(anchor='w', pady=(0, 5))
-        self.request_notes_text = tk.Text(details_frame, height=4, wrap=tk.WORD)
+        self.request_notes_text = tk.Text(notes_frame, height=4, wrap=tk.WORD)
         self.request_notes_text.pack(fill='x')
         
         # Buttons
@@ -447,12 +429,6 @@ class DistributionModule:
             # Calculate total price automatically based on selected products
             total_price = sum([p['price'] * p['quantity'] for p in self.selected_products])
             
-            # Validate date if provided
-            required_date = self.request_required_date_var.get().strip()
-            if required_date and not Validator.is_valid_date(required_date):
-                messagebox.showerror("Error", "Formato de fecha inválido")
-                return
-            
             # Get sales point ID
             sales_point_selection = self.request_sales_point_var.get()
             sales_point_id = int(sales_point_selection.split(' - ')[0])
@@ -467,8 +443,8 @@ class DistributionModule:
                 'product_ids': product_ids,
                 'quantities': quantities,
                 'total_amount': total_price,
-                'requested_date': required_date if required_date else None,
-                'priority': self.request_priority_var.get(),
+                'requested_date': None,
+                'priority': 'medium',
                 'special_instructions': self.request_notes_text.get(1.0, tk.END).strip() if self.request_notes_text.get(1.0, tk.END).strip() else None
             }
             
