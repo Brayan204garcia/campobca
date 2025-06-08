@@ -39,9 +39,9 @@ class ReportsModule:
         activity_tab = ttk.Frame(notebook)
         notebook.add(activity_tab, text="Actividad de Ventas")
         
-        # Waste analysis tab
-        waste_tab = ttk.Frame(notebook)
-        notebook.add(waste_tab, text="Análisis de Desperdicios")
+        # Performance analysis tab
+        performance_tab = ttk.Frame(notebook)
+        notebook.add(performance_tab, text="Análisis de Rendimiento")
         
         # Financial summary tab
         financial_tab = ttk.Frame(notebook)
@@ -50,7 +50,7 @@ class ReportsModule:
         # Create report interfaces
         self.create_inventory_report(inventory_tab)
         self.create_activity_report(activity_tab)
-        self.create_waste_analysis(waste_tab)
+        self.create_performance_analysis(performance_tab)
         self.create_financial_summary(financial_tab)
     
     def create_inventory_report(self, parent):
@@ -214,66 +214,79 @@ class ReportsModule:
         # Load initial data
         self.refresh_activity_report()
     
-    def create_waste_analysis(self, parent):
-        """Create waste analysis report interface"""
+    def create_performance_analysis(self, parent):
+        """Create performance analysis report interface"""
         # Title and controls
         header_frame = ttk.Frame(parent)
         header_frame.pack(fill='x', padx=10, pady=10)
         
-        ttk.Label(header_frame, text="Análisis de Desperdicios", style='Heading.TLabel').pack(side='left')
+        ttk.Label(header_frame, text="Análisis de Rendimiento", style='Heading.TLabel').pack(side='left')
         
         controls_frame = ttk.Frame(header_frame)
         controls_frame.pack(side='right')
         
         ttk.Button(controls_frame, text="🔄 Actualizar", 
                   style='Secondary.TButton',
-                  command=self.refresh_waste_analysis).pack(side='left', padx=(0, 5))
+                  command=self.refresh_performance_analysis).pack(side='left', padx=(0, 5))
         
         ttk.Button(controls_frame, text="📊 Exportar", 
                   style='Primary.TButton',
-                  command=self.export_waste_analysis).pack(side='left')
+                  command=self.export_performance_analysis).pack(side='left')
         
-        # Waste metrics
-        metrics_frame = ttk.LabelFrame(parent, text="Métricas de Desperdicios", padding=10)
+        # Performance metrics
+        metrics_frame = ttk.LabelFrame(parent, text="Métricas de Rendimiento", padding=10)
         metrics_frame.pack(fill='x', padx=10, pady=(0, 10))
         
-        self.waste_metrics_frame = ttk.Frame(metrics_frame)
-        self.waste_metrics_frame.pack(fill='x')
+        self.performance_metrics_frame = ttk.Frame(metrics_frame)
+        self.performance_metrics_frame.pack(fill='x')
         
-        # Products at risk
-        risk_frame = ttk.LabelFrame(parent, text="Productos en Riesgo", padding=10)
-        risk_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
+        # Farmer performance
+        farmer_frame = ttk.LabelFrame(parent, text="Rendimiento por Agricultor", padding=10)
+        farmer_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
         
-        # Risk products treeview
-        risk_columns = ('Producto', 'Agricultor', 'Cantidad', 'Vencimiento', 'Días Restantes', 'Riesgo')
-        self.risk_tree = ttk.Treeview(risk_frame, columns=risk_columns, show='headings', 
-                                    style='Custom.Treeview', height=10)
+        # Farmer performance treeview
+        farmer_columns = ('Agricultor', 'Productos Activos', 'Total Cantidad', 'Valor Inventario', 'Calificación')
+        self.farmer_tree = ttk.Treeview(farmer_frame, columns=farmer_columns, show='headings', 
+                                      style='Custom.Treeview', height=10)
         
-        for col in risk_columns:
-            self.risk_tree.heading(col, text=col)
-            if col in ['Producto', 'Agricultor']:
-                self.risk_tree.column(col, width=120, minwidth=100)
-            elif col == 'Vencimiento':
-                self.risk_tree.column(col, width=100, minwidth=90)
+        for col in farmer_columns:
+            self.farmer_tree.heading(col, text=col)
+            if col == 'Agricultor':
+                self.farmer_tree.column(col, width=150, minwidth=120)
             else:
-                self.risk_tree.column(col, width=80, minwidth=70)
+                self.farmer_tree.column(col, width=120, minwidth=100)
         
         # Scrollbars
-        risk_scrollbar_y = ttk.Scrollbar(risk_frame, orient='vertical', command=self.risk_tree.yview)
-        self.risk_tree.configure(yscrollcommand=risk_scrollbar_y.set)
+        farmer_scrollbar_y = ttk.Scrollbar(farmer_frame, orient='vertical', command=self.farmer_tree.yview)
+        self.farmer_tree.configure(yscrollcommand=farmer_scrollbar_y.set)
         
-        self.risk_tree.pack(side='left', fill='both', expand=True)
-        risk_scrollbar_y.pack(side='right', fill='y')
+        self.farmer_tree.pack(side='left', fill='both', expand=True)
+        farmer_scrollbar_y.pack(side='right', fill='y')
         
-        # Recommendations
-        recommendations_frame = ttk.LabelFrame(parent, text="Recomendaciones", padding=10)
-        recommendations_frame.pack(fill='x', padx=10, pady=(0, 10))
+        # Product popularity
+        popularity_frame = ttk.LabelFrame(parent, text="Productos Populares", padding=10)
+        popularity_frame.pack(fill='both', expand=True, padx=10, pady=(0, 10))
         
-        self.recommendations_text = tk.Text(recommendations_frame, height=6, font=('Segoe UI', 10), wrap=tk.WORD)
-        self.recommendations_text.pack(fill='x')
+        popularity_columns = ('Producto', 'Categoría', 'Solicitudes', 'Cantidad Solicitada', 'Popularidad')
+        self.popularity_tree = ttk.Treeview(popularity_frame, columns=popularity_columns, show='headings', 
+                                          style='Custom.Treeview', height=8)
+        
+        for col in popularity_columns:
+            self.popularity_tree.heading(col, text=col)
+            if col in ['Producto', 'Categoría']:
+                self.popularity_tree.column(col, width=120, minwidth=100)
+            else:
+                self.popularity_tree.column(col, width=100, minwidth=80)
+        
+        # Scrollbars
+        pop_scrollbar_y = ttk.Scrollbar(popularity_frame, orient='vertical', command=self.popularity_tree.yview)
+        self.popularity_tree.configure(yscrollcommand=pop_scrollbar_y.set)
+        
+        self.popularity_tree.pack(side='left', fill='both', expand=True)
+        pop_scrollbar_y.pack(side='right', fill='y')
         
         # Load initial data
-        self.refresh_waste_analysis()
+        self.refresh_performance_analysis()
     
     def create_financial_summary(self, parent):
         """Create financial summary report interface"""
@@ -440,53 +453,75 @@ class ReportsModule:
         except Exception as e:
             messagebox.showerror("Error", f"Error cargando reporte de actividad: {str(e)}")
     
-    def refresh_waste_analysis(self):
-        """Refresh waste analysis data"""
+    def refresh_performance_analysis(self):
+        """Refresh performance analysis data"""
         try:
             # Clear existing data
-            for item in self.risk_tree.get_children():
-                self.risk_tree.delete(item)
+            for item in self.farmer_tree.get_children():
+                self.farmer_tree.delete(item)
+            for item in self.popularity_tree.get_children():
+                self.popularity_tree.delete(item)
             
             # Clear metrics frame
-            for widget in self.waste_metrics_frame.winfo_children():
+            for widget in self.performance_metrics_frame.winfo_children():
                 widget.destroy()
             
-            # Get products at risk
+            # Get data
             products = self.db.get_products(available_only=True)
-            risk_products = []
+            farmers = self.db.get_farmers(active_only=True)
+            requests = self.db.get_distribution_requests()
             
-            for product in products:
-                if product['expiry_date']:
-                    try:
-                        expiry_date = datetime.strptime(product['expiry_date'], '%Y-%m-%d')
-                        days_remaining = (expiry_date - datetime.now()).days
-                        
-                        if days_remaining <= 7:  # Products expiring within 7 days
-                            risk_level = "🔴 Alto" if days_remaining <= 2 else "🟡 Medio"
-                            risk_products.append({
-                                'product': product,
-                                'days_remaining': days_remaining,
-                                'risk_level': risk_level
-                            })
-                    except ValueError:
-                        continue
+            # Analyze farmer performance
+            farmer_performance = {}
+            for farmer in farmers:
+                farmer_id = farmer['id']
+                farmer_products = [p for p in products if p['farmer_id'] == farmer_id]
+                
+                total_quantity = sum(p['quantity'] for p in farmer_products)
+                total_value = sum(p['quantity'] * p['price_per_unit'] for p in farmer_products)
+                product_count = len(farmer_products)
+                
+                # Calculate rating based on products and value
+                rating = min(5, max(1, (product_count / 5) + (total_value / 1000)))
+                
+                farmer_performance[farmer_id] = {
+                    'name': farmer['name'],
+                    'products': product_count,
+                    'quantity': total_quantity,
+                    'value': total_value,
+                    'rating': rating
+                }
             
-            # Calculate metrics
-            total_at_risk = len(risk_products)
-            high_risk = len([p for p in risk_products if "Alto" in p['risk_level']])
-            estimated_loss = sum(p['product']['quantity'] * p['product']['price_per_unit'] 
-                               for p in risk_products if p['days_remaining'] <= 2)
+            # Analyze product popularity (based on distribution requests)
+            product_popularity = {}
+            for request in requests:
+                for item in request.get('products', []):
+                    product_id = item.get('product_id')
+                    if product_id:
+                        if product_id not in product_popularity:
+                            product_popularity[product_id] = {
+                                'requests': 0,
+                                'total_quantity': 0
+                            }
+                        product_popularity[product_id]['requests'] += 1
+                        product_popularity[product_id]['total_quantity'] += item.get('quantity', 0)
             
-            # Create metrics cards
+            # Calculate overall metrics
+            total_farmers = len(farmers)
+            active_farmers = len([f for f in farmer_performance.values() if f['products'] > 0])
+            avg_products_per_farmer = sum(f['products'] for f in farmer_performance.values()) / total_farmers if total_farmers else 0
+            total_requests = len(requests)
+            
+            # Create performance metrics cards
             metrics_data = [
-                ("⚠️", "Productos en Riesgo", total_at_risk),
-                ("🔴", "Riesgo Alto", high_risk),
-                ("💸", "Pérdida Estimada", f"${estimated_loss:.2f}"),
-                ("📊", "Tasa de Riesgo", f"{(total_at_risk/len(products)*100):.1f}%" if products else "0%")
+                ("👨‍🌾", "Agricultores Activos", f"{active_farmers}/{total_farmers}"),
+                ("📦", "Promedio Productos", f"{avg_products_per_farmer:.1f}"),
+                ("📋", "Total Solicitudes", total_requests),
+                ("🎯", "Tasa Actividad", f"{(active_farmers/total_farmers*100):.1f}%" if total_farmers else "0%")
             ]
             
             for i, (icon, label, value) in enumerate(metrics_data):
-                card = ttk.Frame(self.waste_metrics_frame, style='Card.TFrame', relief='raised', borderwidth=1)
+                card = ttk.Frame(self.performance_metrics_frame, style='Card.TFrame', relief='raised', borderwidth=1)
                 card.pack(side='left', fill='both', expand=True, padx=(0, 10) if i < len(metrics_data)-1 else (0, 0))
                 
                 icon_frame = ttk.Frame(card)
@@ -496,41 +531,59 @@ class ReportsModule:
                 ttk.Label(icon_frame, text=str(value), style='StatValue.TLabel').pack()
                 ttk.Label(icon_frame, text=label, style='StatLabel.TLabel').pack()
             
-            # Populate risk tree
-            for risk_item in sorted(risk_products, key=lambda x: x['days_remaining']):
-                product = risk_item['product']
-                self.risk_tree.insert('', 'end', values=(
-                    product['name'],
-                    product['farmer_name'],
-                    f"{product['quantity']:.2f} {product['unit']}",
-                    product['expiry_date'],
-                    risk_item['days_remaining'],
-                    risk_item['risk_level']
+            # Populate farmer performance tree
+            for farmer_data in sorted(farmer_performance.values(), key=lambda x: x['value'], reverse=True):
+                rating_stars = "⭐" * int(farmer_data['rating'])
+                self.farmer_tree.insert('', 'end', values=(
+                    farmer_data['name'],
+                    farmer_data['products'],
+                    f"{farmer_data['quantity']:.2f}",
+                    f"${farmer_data['value']:.2f}",
+                    rating_stars
                 ))
             
-            # Generate recommendations
-            self.recommendations_text.delete(1.0, tk.END)
-            
-            if risk_products:
-                self.recommendations_text.insert('end', "🎯 RECOMENDACIONES PARA REDUCIR DESPERDICIOS:\n\n", 'header')
-                
-                if high_risk > 0:
-                    self.recommendations_text.insert('end', f"• URGENTE: {high_risk} productos requieren acción inmediata\n")
-                    self.recommendations_text.insert('end', "• Considere ofertas especiales o descuentos para productos próximos a vencer\n")
-                
-                self.recommendations_text.insert('end', "• Priorice la distribución de productos con fechas de vencimiento próximas\n")
-                self.recommendations_text.insert('end', "• Contacte puntos de venta que acepten productos con descuento\n")
-                self.recommendations_text.insert('end', "• Evalúe donaciones a organizaciones benéficas\n")
-            else:
-                self.recommendations_text.insert('end', "✅ Excelente gestión de inventario.\n", 'success')
-                self.recommendations_text.insert('end', "No hay productos en riesgo inmediato de desperdicio.")
-            
-            # Configure text tags
-            self.recommendations_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#2E7D32')
-            self.recommendations_text.tag_configure('success', font=('Segoe UI', 11, 'bold'), foreground='#4CAF50')
-            
+            # Populate product popularity tree
+            product_lookup = {p['id']: p for p in products}
+            for product_id, pop_data in sorted(product_popularity.items(), key=lambda x: x[1]['requests'], reverse=True)[:10]:
+                product = product_lookup.get(product_id)
+                if product:
+                    popularity_score = pop_data['requests'] * 10 + pop_data['total_quantity']
+                    popularity_level = "🔥 Muy Alta" if popularity_score > 50 else "📈 Alta" if popularity_score > 20 else "📊 Media"
+                    
+                    self.popularity_tree.insert('', 'end', values=(
+                        product['name'],
+                        product['category'],
+                        pop_data['requests'],
+                        f"{pop_data['total_quantity']:.2f}",
+                        popularity_level
+                    ))
+                    
         except Exception as e:
-            messagebox.showerror("Error", f"Error cargando análisis de desperdicios: {str(e)}")
+            messagebox.showerror("Error", f"Error cargando análisis de rendimiento: {str(e)}")
+    
+    def export_performance_analysis(self):
+        """Export performance analysis to CSV"""
+        try:
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".csv",
+                filetypes=[("CSV files", "*.csv")],
+                title="Exportar Análisis de Rendimiento"
+            )
+            if filename:
+                import csv
+                with open(filename, 'w', newline='', encoding='utf-8') as file:
+                    writer = csv.writer(file)
+                    writer.writerow(['Análisis de Rendimiento - Exportado el', datetime.now().strftime('%Y-%m-%d %H:%M')])
+                    writer.writerow([])
+                    writer.writerow(['Agricultor', 'Productos Activos', 'Total Cantidad', 'Valor Inventario', 'Calificación'])
+                    
+                    for item in self.farmer_tree.get_children():
+                        values = self.farmer_tree.item(item, 'values')
+                        writer.writerow(values)
+                        
+                messagebox.showinfo("Éxito", f"Reporte exportado a: {filename}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error exportando reporte: {str(e)}")
     
     def refresh_financial_summary(self):
         """Refresh financial summary data"""

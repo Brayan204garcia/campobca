@@ -183,6 +183,7 @@ class Dashboard:
             farmer_lookup = {f['id']: f['name'] for f in farmers}
             
             # Find expiring products (within 7 days)
+            from datetime import datetime, timedelta
             future_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
             
             expiring_products = []
@@ -214,9 +215,7 @@ class Dashboard:
             alerts_text.config(state='disabled')
             
         except Exception as e:
-            error_label = ttk.Label(parent, text=f"Error cargando alertas: {str(e)}", 
-                                  foreground='red')
-            error_label.pack()
+            alerts_text.insert('end', f"Error cargando alertas: {str(e)}")
     
     def refresh_dashboard(self):
         """Refresh dashboard data"""
@@ -593,3 +592,23 @@ class Dashboard:
         
         ttk.Button(buttons_frame, text="Guardar", command=save_request, style='Primary.TButton').pack(side='left', padx=(0, 10))
         ttk.Button(buttons_frame, text="Cancelar", command=dialog.destroy, style='Secondary.TButton').pack(side='left')
+            
+            if expiring_products:
+                alerts_text.insert('end', "⚠️ PRODUCTOS POR VENCER:\n", 'warning')
+                for product in expiring_products:
+                    alerts_text.insert('end', f"• {product['name']} ({product['farmer_name']}) - Vence: {product['expiry_date']}\n")
+            else:
+                alerts_text.insert('end', "✅ No hay alertas críticas en este momento.\n", 'success')
+            
+            # Configure text tags
+            alerts_text.tag_configure('warning', foreground='#FF9800', font=('Segoe UI', 10, 'bold'))
+            alerts_text.tag_configure('success', foreground='#4CAF50', font=('Segoe UI', 10, 'bold'))
+            
+            alerts_text.configure(state='disabled')
+            
+        except Exception as e:
+            error_label = ttk.Label(parent, text=f"Error cargando alertas: {str(e)}", 
+                                  foreground='red')
+            error_label.pack()
+    
+
