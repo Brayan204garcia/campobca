@@ -425,33 +425,41 @@ class ReportsModule:
             start_date = self.start_date_var.get() if hasattr(self, 'start_date_var') else None
             end_date = self.end_date_var.get() if hasattr(self, 'end_date_var') else None
             
-            # Count requests by status
-            active_requests = len([r for r in requests if r['status'] in ['Pendiente', 'Confirmado']])
-            completed_requests = len([r for r in requests if r['status'] == 'Entregado'])
-            in_transit = len([d for d in deliveries if d['status'] == 'En Tránsito'])
+            # Count requests by status (case insensitive)
+            active_requests = len([r for r in requests if r['status'].lower() in ['pendiente', 'confirmado']])
+            completed_requests = len([r for r in requests if r['status'].lower() == 'entregado'])
+            in_transit = len([d for d in deliveries if d['status'].lower() == 'en tránsito'])
             
             # Calculate total value of completed sales (delivered orders)
             total_sales_value = 0
             completed_sales = []
             
             for delivery in deliveries:
-                if delivery['status'] == 'Entregado':
+                if delivery['status'].lower() == 'entregado':
                     # Find the corresponding request
                     request = next((r for r in requests if r['id'] == delivery['request_id']), None)
                     if request:
                         # Calculate value from products in the request
                         request_value = 0
-                        for product_item in request.get('products', []):
-                            # Get product details to calculate value
-                            products = self.db.get_products()
-                            product = next((p for p in products if p['id'] == product_item.get('product_id')), None)
-                            if product:
-                                item_value = product_item.get('quantity', 0) * product.get('price_per_unit', 0)
-                                request_value += item_value
+                        
+                        # Handle the actual data structure: product_ids and quantities arrays
+                        product_ids = request.get('product_ids', [])
+                        quantities = request.get('quantities', [])
+                        
+                        # Get all products for lookup
+                        products = self.db.get_products()
+                        
+                        for i, product_id in enumerate(product_ids):
+                            if i < len(quantities):
+                                quantity = quantities[i]
+                                product = next((p for p in products if p['id'] == product_id), None)
+                                if product:
+                                    item_value = quantity * product.get('price_per_unit', 0)
+                                    request_value += item_value
                         
                         total_sales_value += request_value
                         completed_sales.append({
-                            'date': delivery.get('delivery_date', ''),
+                            'date': delivery.get('delivered_date', delivery.get('scheduled_date', '')),
                             'request': request,
                             'delivery': delivery,
                             'value': request_value
@@ -483,22 +491,42 @@ class ReportsModule:
                 
                 # Get main product name (first product in request)
                 main_product = "Sin productos"
-                if request.get('products'):
-                    products = self.db.get_products()
-                    first_product_id = request['products'][0].get('product_id')
-                    product = next((p for p in products if p['id'] == first_product_id), None)
+                product_ids = request.get('product_ids', [])
+                quantities = request.get('quantities', [])
+                
+                if product_ids:
+                    all_products = self.db.get_products()
+                    first_product_id = product_ids[0]
+                    product = next((p for p in all_products if p['id'] == first_product_id), None)
                     if product:
                         main_product = product['name']
-                        if len(request['products']) > 1:
-                            main_product += f" (+{len(request['products'])-1} más)"
+                        if len(product_ids) > 1:
+                            main_product += f" (+{len(product_ids)-1} más)"
+                
+                # Get sales point and farmer names
+                sales_points = self.db.get_sales_points()
+                sales_point = next((sp for sp in sales_points if sp['id'] == request.get('sales_point_id')), None)
+                sales_point_name = sales_point['name'] if sales_point else 'N/A'
+                
+                # Get farmer name from first product
+                farmer_name = 'N/A'
+                if product_ids:
+                    all_products = self.db.get_products()
+                    first_product = next((p for p in all_products if p['id'] == product_ids[0]), None)
+                    if first_product:
+                        farmers = self.db.get_farmers()
+                        farmer = next((f for f in farmers if f['id'] == first_product.get('farmer_id')), None)
+                        farmer_name = farmer['name'] if farmer else 'N/A'
+                
+                total_quantity = sum(quantities) if quantities else 0
                 
                 self.transactions_tree.insert('', 'end', values=(
-                    sale['date'],
+                    sale['date'][:10] if sale['date'] else 'N/A',  # Extract date part
                     'Venta Completada',
                     main_product,
-                    request.get('farmer_name', 'N/A'),
-                    request.get('sales_point_name', 'N/A'),
-                    f"{sum(item.get('quantity', 0) for item in request.get('products', []))} unidades",
+                    farmer_name,
+                    sales_point_name,
+                    f"{total_quantity:.1f} unidades",
                     f"${sale['value']:.2f}"
                 ))
             
@@ -664,32 +692,36 @@ class ReportsModule:
             category_sales = {}
             
             for delivery in deliveries:
-                if delivery['status'] == 'Entregado':
+                if delivery['status'].lower() == 'entregado':
                     # Find the corresponding request
                     request = next((r for r in requests if r['id'] == delivery['request_id']), None)
                     if request:
-                        for product_item in request.get('products', []):
-                            # Get product details
-                            product = next((p for p in products if p['id'] == product_item.get('product_id')), None)
-                            if product:
-                                item_value = product_item.get('quantity', 0) * product.get('price_per_unit', 0)
-                                sold_quantity = product_item.get('quantity', 0)
-                                total_sales_revenue += item_value
-                                
-                                # Track by category
-                                category = product['category']
-                                if category not in category_sales:
-                                    category_sales[category] = {
-                                        'products_sold': 0,
-                                        'quantity_sold': 0,
-                                        'revenue': 0,
-                                        'prices': []
-                                    }
-                                
-                                category_sales[category]['products_sold'] += 1
-                                category_sales[category]['quantity_sold'] += sold_quantity
-                                category_sales[category]['revenue'] += item_value
-                                category_sales[category]['prices'].append(product['price_per_unit'])
+                        # Handle the actual data structure: product_ids and quantities arrays
+                        product_ids = request.get('product_ids', [])
+                        quantities = request.get('quantities', [])
+                        
+                        for i, product_id in enumerate(product_ids):
+                            if i < len(quantities):
+                                quantity = quantities[i]
+                                product = next((p for p in products if p['id'] == product_id), None)
+                                if product:
+                                    item_value = quantity * product.get('price_per_unit', 0)
+                                    total_sales_revenue += item_value
+                                    
+                                    # Track by category
+                                    category = product['category']
+                                    if category not in category_sales:
+                                        category_sales[category] = {
+                                            'products_sold': 0,
+                                            'quantity_sold': 0,
+                                            'revenue': 0,
+                                            'prices': []
+                                        }
+                                    
+                                    category_sales[category]['products_sold'] += 1
+                                    category_sales[category]['quantity_sold'] += quantity
+                                    category_sales[category]['revenue'] += item_value
+                                    category_sales[category]['prices'].append(product['price_per_unit'])
             
             # Calculate inventory value
             total_inventory_value = sum(p['quantity'] * p['price_per_unit'] for p in products)
@@ -730,19 +762,19 @@ class ReportsModule:
             # Generate top performers analysis
             self.performers_text.delete(1.0, tk.END)
             
-            if category_data:
-                self.performers_text.insert('end', "🏆 ANÁLISIS DE RENDIMIENTO:\n\n", 'header')
+            if category_sales:
+                self.performers_text.insert('end', "🏆 ANÁLISIS DE VENTAS:\n\n", 'header')
                 
-                # Top category by value
-                top_category = max(category_data.items(), key=lambda x: x[1]['total_value'])
-                self.performers_text.insert('end', f"• Categoría más valiosa: {top_category[0]} (${top_category[1]['total_value']:.2f})\n")
+                # Top category by revenue
+                top_category = max(category_sales.items(), key=lambda x: x[1]['revenue'])
+                self.performers_text.insert('end', f"• Categoría con mayores ingresos: {top_category[0]} (${top_category[1]['revenue']:.2f})\n")
                 
-                # Most diverse category
-                most_products = max(category_data.items(), key=lambda x: x[1]['count'])
-                self.performers_text.insert('end', f"• Mayor diversidad: {most_products[0]} ({most_products[1]['count']} productos)\n")
+                # Most sold products category
+                most_sold = max(category_sales.items(), key=lambda x: x[1]['quantity_sold'])
+                self.performers_text.insert('end', f"• Mayor volumen vendido: {most_sold[0]} ({most_sold[1]['quantity_sold']:.2f} unidades)\n")
                 
                 # Highest average price
-                highest_avg = max(category_data.items(), 
+                highest_avg = max(category_sales.items(), 
                                 key=lambda x: sum(x[1]['prices'])/len(x[1]['prices']) if x[1]['prices'] else 0)
                 avg_price_value = sum(highest_avg[1]['prices'])/len(highest_avg[1]['prices']) if highest_avg[1]['prices'] else 0
                 self.performers_text.insert('end', f"• Precio promedio más alto: {highest_avg[0]} (${avg_price_value:.2f})\n")
@@ -751,7 +783,12 @@ class ReportsModule:
                 self.performers_text.insert('end', "• Considere expandir las categorías más exitosas\n")
                 self.performers_text.insert('end', "• Evalúe estrategias de precio para categorías de menor valor\n")
             else:
-                self.performers_text.insert('end', "No hay datos suficientes para análisis de rendimiento.")
+                self.performers_text.insert('end', "📊 RESUMEN:\n\n")
+                self.performers_text.insert('end', f"• Valor total del inventario: ${total_inventory_value:.2f}\n")
+                self.performers_text.insert('end', f"• Productos disponibles: {total_products}\n")
+                self.performers_text.insert('end', f"• Ingresos por ventas: ${total_sales_revenue:.2f}\n")
+                if total_sales_revenue == 0:
+                    self.performers_text.insert('end', "\n💡 No hay ventas completadas aún para mostrar análisis detallado.")
             
             # Configure text tags
             self.performers_text.tag_configure('header', font=('Segoe UI', 11, 'bold'), foreground='#2E7D32')
