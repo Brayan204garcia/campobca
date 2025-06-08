@@ -196,17 +196,17 @@ class DistributionModule:
         # Form variables
         self.request_sales_point_var = tk.StringVar()
         
-        # Top section: Sales point and Products side by side
-        top_frame = ttk.Frame(main_frame)
-        top_frame.pack(fill='both', expand=True, pady=(0, 15))
+        # Main sections in one row that adapts to window width
+        main_sections_frame = ttk.Frame(main_frame)
+        main_sections_frame.pack(fill='both', expand=True, pady=(0, 15))
         
         # Sales point selection (left side)
-        sp_frame = ttk.LabelFrame(top_frame, text="Punto de Venta", padding=10)
-        sp_frame.pack(side='left', fill='y', padx=(0, 10))
+        sp_frame = ttk.LabelFrame(main_sections_frame, text="Punto de Venta", padding=10)
+        sp_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
         
         ttk.Label(sp_frame, text="Seleccionar Punto de Venta *:").pack(anchor='w', pady=(0, 5))
         sp_combo = ttk.Combobox(sp_frame, textvariable=self.request_sales_point_var, 
-                               style='Custom.TCombobox', state='readonly', width=25)
+                               style='Custom.TCombobox', state='readonly')
         
         # Load sales points
         try:
@@ -218,16 +218,16 @@ class DistributionModule:
         
         sp_combo.pack(fill='x', ipady=5)
         
-        # Available products section (right side with scrollbar)
-        available_frame = ttk.LabelFrame(top_frame, text="Productos Disponibles", padding=10)
-        available_frame.pack(side='right', fill='both', expand=True)
+        # Available products section (center with scrollbar)
+        available_frame = ttk.LabelFrame(main_sections_frame, text="Productos Disponibles", padding=10)
+        available_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
         
         # Available products tree with scrollbar
         avail_tree_frame = ttk.Frame(available_frame)
         avail_tree_frame.pack(fill='both', expand=True)
         
         avail_columns = ('ID', 'Producto', 'Precio', 'Cantidad', 'Agricultor')
-        self.available_tree = ttk.Treeview(avail_tree_frame, columns=avail_columns, show='headings', height=8)
+        self.available_tree = ttk.Treeview(avail_tree_frame, columns=avail_columns, show='headings', height=12)
         
         # Scrollbar for available products
         avail_scrollbar = ttk.Scrollbar(avail_tree_frame, orient='vertical', command=self.available_tree.yview)
@@ -245,29 +245,38 @@ class DistributionModule:
         self.available_tree.pack(side='left', fill='both', expand=True)
         avail_scrollbar.pack(side='right', fill='y')
         
-        # Selected products section (below, full width)
-        selected_frame = ttk.LabelFrame(main_frame, text="Productos Seleccionados", padding=10)
-        selected_frame.pack(fill='x', pady=(0, 15))
+        # Selected products section (right side)
+        selected_frame = ttk.LabelFrame(main_sections_frame, text="Productos Seleccionados", padding=10)
+        selected_frame.pack(side='left', fill='both', expand=True)
         
-        ttk.Label(selected_frame, text="Productos Seleccionados:").pack(anchor='w', pady=(0, 5))
+        # Selected products tree with scrollbar
+        selected_tree_frame = ttk.Frame(selected_frame)
+        selected_tree_frame.pack(fill='both', expand=True)
         
-        # Selected products tree
         sel_columns = ('Producto', 'Cantidad', 'Precio Unit.', 'Total')
-        self.selected_products_tree = ttk.Treeview(selected_frame, columns=sel_columns, show='headings', height=8)
+        self.selected_products_tree = ttk.Treeview(selected_tree_frame, columns=sel_columns, show='headings', height=12)
+        
+        # Scrollbar for selected products
+        selected_scrollbar = ttk.Scrollbar(selected_tree_frame, orient='vertical', command=self.selected_products_tree.yview)
+        self.selected_products_tree.configure(yscrollcommand=selected_scrollbar.set)
         
         for col in sel_columns:
             self.selected_products_tree.heading(col, text=col)
-            self.selected_products_tree.column(col, width=80)
+            if col == 'Producto':
+                self.selected_products_tree.column(col, width=120)
+            else:
+                self.selected_products_tree.column(col, width=80)
         
-        self.selected_products_tree.pack(fill='x', pady=(0, 10))
+        self.selected_products_tree.pack(side='left', fill='both', expand=True)
+        selected_scrollbar.pack(side='right', fill='y')
         
-        # Product action buttons
-        button_frame = ttk.Frame(selected_frame)
-        button_frame.pack(fill='x', pady=(0, 10))
+        # Product action buttons between sections
+        actions_frame = ttk.Frame(main_frame)
+        actions_frame.pack(fill='x', pady=(10, 15))
         
-        ttk.Button(button_frame, text="➕ Agregar", 
-                  command=self.add_product_to_request).pack(side='left', padx=(0, 5))
-        ttk.Button(button_frame, text="➖ Quitar", 
+        ttk.Button(actions_frame, text="➕ Agregar Producto", 
+                  command=self.add_product_to_request).pack(side='left', padx=(0, 10))
+        ttk.Button(actions_frame, text="➖ Quitar Producto", 
                   command=self.remove_product_from_request).pack(side='left')
         
         # Notes and special instructions
