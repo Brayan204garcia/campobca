@@ -473,6 +473,9 @@ class DistributionModule:
     
     def edit_request(self):
         """Edit the selected distribution request"""
+        if not hasattr(self, 'requests_tree') or self.requests_tree is None:
+            return
+            
         selection = self.requests_tree.selection()
         if not selection:
             messagebox.showwarning("Advertencia", "Seleccione una solicitud para editar")
@@ -498,6 +501,9 @@ class DistributionModule:
     
     def cancel_request(self):
         """Cancel the selected distribution request"""
+        if not hasattr(self, 'requests_tree') or self.requests_tree is None:
+            return
+            
         selection = self.requests_tree.selection()
         if not selection:
             messagebox.showwarning("Advertencia", "Seleccione una solicitud para cancelar")
@@ -614,6 +620,9 @@ class DistributionModule:
     
     def refresh_requests(self):
         """Refresh distribution requests list"""
+        if not hasattr(self, 'requests_tree') or self.requests_tree is None:
+            return
+            
         try:
             # Clear existing items
             for item in self.requests_tree.get_children():
@@ -661,6 +670,9 @@ class DistributionModule:
     
     def on_request_select(self, event):
         """Handle request selection"""
+        if not hasattr(self, 'requests_tree') or self.requests_tree is None:
+            return
+            
         selection = self.requests_tree.selection()
         if selection:
             item = self.requests_tree.item(selection[0])
@@ -676,9 +688,13 @@ class DistributionModule:
     
     def view_request_details(self, event):
         """View detailed information about a request"""
+        if not hasattr(self, 'requests_tree') or self.requests_tree is None:
+            return
+            
         selection = self.requests_tree.selection()
         if not selection:
-            messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver detalles")
+            if event is None:  # Only show warning if called by button, not double-click
+                messagebox.showwarning("Advertencia", "Seleccione una solicitud para ver detalles")
             return
         
         request_id = int(self.requests_tree.item(selection[0])['values'][0])
