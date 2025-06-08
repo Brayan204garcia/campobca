@@ -7,8 +7,9 @@
     "delivery_address": "BARRANCABERMEJAS",
     "estimated_time": null,
     "special_instructions": null,
-    "status": "delivered",
-    "created_date": "2025-06-07T19:14:31.292513",
-    "status_updated_date": "2025-06-07T19:15:14.945482"
+    "status": "entregado",
+    "created_date": "2025-06-07T20:02:31.041535",
+    "status_updated_date": "2025-06-07T20:03:06.673413",
+    "delivered_date": "2025-06-07T20:03:06.673413"
   }
 ]
